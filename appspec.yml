@@ -5,5 +5,5 @@ files:
     destination: /media/efs/platform-test/acadia2-0916/
 hooks:
   AfterInstall:
-    - location: /media/efs/scripts/fixperms.sh
+    - location: /scripts/fixperms.sh
       timeout: 180
