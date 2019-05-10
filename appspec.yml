@@ -3,3 +3,7 @@ os: linux
 files:
   - source: /
     destination: /media/efs/platform-test/acadia2-0916/
+hooks:
+  - AfterInstall:
+      - location: /media/efs/scripts/fixperms.sh
+        timeout: 180
