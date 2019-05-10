@@ -1,0 +1,322 @@
+<?php
+// $Id$
+/**
+ * @file
+ * Global install functions
+ */
+
+function sso_install()
+{
+  drupal_install_schema('sso');
+}
+
+function sso_uninstall()
+{
+  drupal_uninstall_schema('sso');
+}
+
+function sso_schema()
+{
+  $schema = array();
+  $schema['sso'] = array(
+    'description' => 'SSO user ids associated with drupal user ids.',
+	'fields' => array(
+				'guid' => array(
+					'description' => 'The sso uid',
+					'type'        => 'varchar',
+					'length'      => 36,
+					'not null'    => TRUE,
+					'default'     => ''
+					),
+				'uid' => array(
+					'type'        => 'int',
+					'unsigned'    => TRUE,
+					'not null'    => TRUE,
+					'default'     => 0
+					),
+				'loginToken' => array(
+					'type'        => 'varchar',
+					'length'      => 60,
+					'not null'    => TRUE,
+					'default'     => ''
+					),
+				),
+	'primary key' => array('guid'),			
+	'indexes' => array(
+	  'guid' => array('guid'),
+	  'loginToken' => array('loginToken'),
+	),
+	'unique_keys' => array(
+	  'guid' => array('guid'),
+	),
+  );
+  return $schema;
+}
+
+
+function sso_update_6101() 
+{    
+  $schema['membership'] = array(
+    'description' => 'table that holds memberships for local users',
+	'fields' => array(
+				'id' => array(
+					'description' => 'The membership id',
+					'type'        => 'varchar',
+					'length'      => 36,
+					'not null'    => TRUE,
+					'default'     => ''
+					),
+				'userId' => array(
+					'type'        => 'varchar',
+					'length'      => 36,
+					'not null'    => TRUE,
+					'default'     => ''
+					),
+				'realm' => array(
+					'type'        => 'varchar',
+					'length'      => 100,
+					'not null'    => TRUE,
+					'default'     => ''
+					),
+				'roleName' => array(
+					'type'        => 'varchar',
+					'length'      => 60,
+					'not null'    => TRUE,
+					'default'     => ''
+					),
+				'startDate' => array(
+					'type'        => 'int',
+					'unsigned'    => TRUE,
+					'not null'    => TRUE,
+					'default'     => 0
+					),
+				'endDate' => array(
+					'type'        => 'int',
+					'unsigned'    => TRUE,
+					'not null'    => TRUE,
+					'default'     => 0
+					),
+				'website' => array(
+					'type'        => 'varchar',
+					'length'      => 60,
+					'not null'    => TRUE,
+					'default'     => ''
+					),
+				'changed' => array(
+					'type'        => 'int',
+					'unsigned'    => TRUE,
+					'not null'    => TRUE,
+					'default'     => 0
+					),
+				'syncTime' => array(
+					'type'        => 'int',
+					'unsigned'    => TRUE,
+					'not null'    => TRUE,
+					'default'     => 0
+					),
+				'syncMethod' => array(
+					'type'        => 'varchar',
+					'length'      => 6,
+					'not null'    => TRUE,
+					'default'     => 'login'
+					),
+				),
+	'primary key' => array('id'),			
+  );
+  
+  $schema['membership_temp'] = array(
+    'description' => 'table that holds memberships for local users',
+	'fields' => array(
+				'id' => array(
+					'description' => 'The membership id',
+					'type'        => 'varchar',
+					'length'      => 36,
+					'not null'    => TRUE,
+					'default'     => ''
+					),
+				'userId' => array(
+					'type'        => 'varchar',
+					'length'      => 36,
+					'not null'    => TRUE,
+					'default'     => ''
+					),
+				'realm' => array(
+					'type'        => 'varchar',
+					'length'      => 100,
+					'not null'    => TRUE,
+					'default'     => ''
+					),
+				'roleName' => array(
+					'type'        => 'varchar',
+					'length'      => 60,
+					'not null'    => TRUE,
+					'default'     => ''
+					),
+				'startDate' => array(
+					'type'        => 'int',
+					'unsigned'    => TRUE,
+					'not null'    => TRUE,
+					'default'     => 0
+					),
+				'endDate' => array(
+					'type'        => 'int',
+					'unsigned'    => TRUE,
+					'not null'    => TRUE,
+					'default'     => 0
+					),
+				'website' => array(
+					'type'        => 'varchar',
+					'length'      => 60,
+					'not null'    => TRUE,
+					'default'     => ''
+					),
+				'changed' => array(
+					'type'        => 'int',
+					'unsigned'    => TRUE,
+					'not null'    => TRUE,
+					'default'     => 0
+					),
+				'syncTime' => array(
+					'type'        => 'int',
+					'unsigned'    => TRUE,
+					'not null'    => TRUE,
+					'default'     => 0
+					),
+				),
+	'primary key' => array('id'),			
+  );
+  $schema['membership_log'] = array(
+    'description' => 'log table that holds memberships for local users',
+	'fields' => array(
+				'id' => array(
+					'description' => 'The membership id',
+					'type'        => 'varchar',
+					'length'      => 36,
+					'not null'    => TRUE,
+					'default'     => ''
+					),
+				'userId' => array(
+					'type'        => 'varchar',
+					'length'      => 36,
+					'not null'    => TRUE,
+					'default'     => ''
+					),
+				'realm' => array(
+					'type'        => 'varchar',
+					'length'      => 100,
+					'not null'    => TRUE,
+					'default'     => ''
+					),
+				'roleName' => array(
+					'type'        => 'varchar',
+					'length'      => 60,
+					'not null'    => TRUE,
+					'default'     => ''
+					),
+				'startDate' => array(
+					'type'        => 'int',
+					'unsigned'    => TRUE,
+					'not null'    => TRUE,
+					'default'     => 0
+					),
+				'endDate' => array(
+					'type'        => 'int',
+					'unsigned'    => TRUE,
+					'not null'    => TRUE,
+					'default'     => 0
+					),
+				'website' => array(
+					'type'        => 'varchar',
+					'length'      => 60,
+					'not null'    => TRUE,
+					'default'     => ''
+					),
+				'changed' => array(
+					'type'        => 'int',
+					'unsigned'    => TRUE,
+					'not null'    => TRUE,
+					'default'     => 0
+					),
+				'syncTime' => array(
+					'type'        => 'int',
+					'unsigned'    => TRUE,
+					'not null'    => TRUE,
+					'default'     => 0
+					),
+				'syncMethod' => array(
+					'type'        => 'varchar',
+					'length'      => 6,
+					'not null'    => TRUE,
+					'default'     => 'login'
+					),
+				),
+	'primary key' => array('id'),			
+  );
+   $schema['membership_to_delete'] = array(
+    'description' => ' table that holds memberships to be deleted',
+	'fields' => array(
+				'id' => array(
+					'description' => 'The membership id',
+					'type'        => 'varchar',
+					'length'      => 36,
+					'not null'    => TRUE,
+					'default'     => ''
+					),
+				'userId' => array(
+					'type'        => 'varchar',
+					'length'      => 36,
+					'not null'    => TRUE,
+					'default'     => ''
+					),
+				'realm' => array(
+					'type'        => 'varchar',
+					'length'      => 100,
+					'not null'    => TRUE,
+					'default'     => ''
+					),
+				'roleName' => array(
+					'type'        => 'varchar',
+					'length'      => 60,
+					'not null'    => TRUE,
+					'default'     => ''
+					),
+				'startDate' => array(
+					'type'        => 'int',
+					'unsigned'    => TRUE,
+					'not null'    => TRUE,
+					'default'     => 0
+					),
+				'endDate' => array(
+					'type'        => 'int',
+					'unsigned'    => TRUE,
+					'not null'    => TRUE,
+					'default'     => 0
+					),
+				'website' => array(
+					'type'        => 'varchar',
+					'length'      => 60,
+					'not null'    => TRUE,
+					'default'     => ''
+					),
+				'changed' => array(
+					'type'        => 'int',
+					'unsigned'    => TRUE,
+					'not null'    => TRUE,
+					'default'     => 0
+					),
+				'syncTime' => array(
+					'type'        => 'int',
+					'unsigned'    => TRUE,
+					'not null'    => TRUE,
+					'default'     => 0
+					),
+				),
+	'primary key' => array('id'),			
+  );
+  $ret = array();
+  db_create_table($ret, 'membership', $schema['membership']);
+  db_create_table($ret, 'membership_log', $schema['membership_log']);
+  db_create_table($ret, 'membership_temp', $schema['membership_temp']);
+  db_create_table($ret, 'membership_to_delete', $schema['membership_to_delete']);
+  return $ret;
+}

@@ -1,0 +1,14 @@
+; $Id$
+name = UC Role Expiration Notifications
+description = Provides a much more flexible notification system for expiring Ubercart role promotions.
+dependencies[] = uc_roles
+package = Ubercart - extra
+core = 6.x
+php = 5.0
+
+; Information added by fserver
+core = "6.x"
+datestamp = "1291223162"
+project = "uc_rolenotify"
+project status url = "http://features.devmcn.com/fserver"
+version = "6.x-1.0"

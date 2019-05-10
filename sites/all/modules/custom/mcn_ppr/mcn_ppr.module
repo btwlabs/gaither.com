@@ -1,0 +1,164 @@
+<?php
+
+function mcn_ppr_menu() {
+
+  $items = array();
+
+  $items['admin/store/reports/ppr'] = array(
+    'title' => 'Generate Purchased Products Report',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('mcn_ppr_export'),
+    'access arguments' => array('generate purchased products reports'),
+    'type' => MENU_NORMAL_ITEM,
+   );
+
+  return $items;
+}
+
+function mcn_ppr_perm()
+{
+  return array('generate purchased products reports');
+}
+
+function mcn_ppr_export()
+{
+  $result = db_query("SELECT nid, title from {node} WHERE type='product'");
+  $options = array();
+  while ($option = db_fetch_array($result))
+  {
+    $options[$option['nid']] = $option['title'];
+  }
+
+  $form['mcn_ppr_nid'] = array(
+    '#type' => 'select',
+    '#options' => $options,
+    '#title' => t('Product'),
+    '#required' => true,
+  );
+  
+  
+  $form['mcn_ppr_include_pending'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Include Pending Sales'),
+  );
+  
+  $form['mcn_ppr_attribute_filter'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Attribute Filter'),
+    '#collapsible' => true,
+    '#collapsed' => true,
+  );
+  
+  $result = db_query('SELECT DISTINCT(aid), label from {uc_product_attributes}');
+  $options = array('' => t('Select an attribute...'), ' ' => array());
+  while ($option = db_fetch_array($result))
+  {
+    $options[' '][$option['label']] = $option['label'];
+  }
+  
+  $form['mcn_ppr_attribute_filter']['mcn_ppr_attribute_key'] = array(
+    '#type' => 'select',
+    '#options' => $options,
+    '#include_empty' => true,
+    '#title' => t('Attribute'),
+    '#required' => false,
+  );
+  
+  $form['mcn_ppr_attribute_filter']['mcn_ppr_attribute_value'] = array(
+    '#type' => 'textfield',
+    '#title' => 'is',
+    '#size' => 20,
+  );
+  
+  $form['submit'] = array('#type' => 'submit', '#value' => t('Run'));
+  
+  return $form;
+}
+
+function mcn_ppr_export_validate($form, &$form_state)
+{
+ if (!empty($form_state['values']['mcn_ppr_attribute_key']) && empty($form_state['values']['mcn_ppr_attribute_value']))
+ {
+   form_set_error('mcn_ppr_attribute_value', 'You must enter a value if you filter by an attribute.');
+ }
+}
+
+function mcn_ppr_export_submit($form, &$form_state)
+{
+  header('Expires: 0');
+  header('Cache-control: private');
+  header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
+  header('Content-Description: File Transfer');
+  header('Content-Type: application/csv');
+  header('Content-disposition: attachment; filename=purchases.csv');
+  
+  $query = "SELECT 
+    o.order_id as 'Order ID',
+    DATE_FORMAT(FROM_UNIXTIME(o.created), '%%m/%%d/%%Y') as 'Purchase Date',
+    op.title as 'Product Description',
+    op.qty as 'Quantity',
+    CONCAT('$', FORMAT(op.qty * op.price, 2)) as 'Amount of Purchase',
+    u.uid as 'User ID',
+    o.billing_first_name as 'First Name',
+    o.billing_last_name as 'Last Name',
+    CONCAT_WS(', ', o.delivery_street1, NULLIF(o.delivery_street2, '')) as 'Shipping Address',
+    o.delivery_city as 'Ship City',
+    z.zone_code as 'Ship State',
+    o.delivery_postal_code as 'Ship Zip Code',
+    c.country_iso_code_2 as 'Ship Country',
+    o.delivery_phone as 'Ship Phone',
+    o.primary_email as 'E-mail Adress',
+    o.order_status as 'Order Status',
+    op.data as 'Data'
+  FROM {uc_orders} o 
+    INNER JOIN {uc_order_products} op USING (order_id)
+    LEFT JOIN {users} u USING (uid)
+    INNER JOIN {node} n USING (nid)
+    LEFT JOIN {uc_zones} z ON o.delivery_zone = z.zone_id
+    LEFT JOIN {uc_countries} c ON o.delivery_country = c.country_id
+  WHERE op.nid=%d ";
+    
+  if ($form_state['values']['mcn_ppr_include_pending'])
+  {
+    $query .= "AND o.order_status IN ('completed', 'payment_received', 'pending_release', 'in_checkout', 'pending', 'processing');";
+  }
+  else
+  {
+    $query .= "AND o.order_status IN ('completed', 'payment_received', 'pending_release');";
+  }
+  
+  $firstLine = true;
+  $fp = fopen('php://output', 'w');
+  
+  $result = db_query($query, array($form_state['values']['mcn_ppr_nid']));
+  
+  while ($purchase = db_fetch_array($result))
+  {
+    if (!empty($form_state['values']['mcn_ppr_attribute_key']))
+    {
+      $data = unserialize($purchase['Data']);
+      unset($purchase['Data']);
+      if (isset($data['attributes'][$form_state['values']['mcn_ppr_attribute_key']]) && in_array($form_state['values']['mcn_ppr_attribute_value'], $data['attributes'][$form_state['values']['mcn_ppr_attribute_key']]))
+      {
+        $purchase[$form_state['values']['mcn_ppr_attribute_key']] = $form_state['values']['mcn_ppr_attribute_value'];
+        if ($firstLine)
+        {
+          fputcsv($fp, array_keys($purchase));
+          $firstLine = false;
+        }
+        fputcsv($fp, $purchase);
+      }
+    }
+    else
+    {
+      unset($purchase['Data']);
+      if ($firstLine)
+      {
+        fputcsv($fp, array_keys($purchase));
+        $firstLine = false;
+      }
+      fputcsv($fp, $purchase);
+    }
+  }
+  exit();
+}

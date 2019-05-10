@@ -1,0 +1,22 @@
+name = artistsocial
+description = Drupal 6 Custom Theme built for 
+version = 1.0
+core = 6.x
+engine = phptemplate
+
+stylesheets[all][] = css/reset.css
+stylesheets[all][] = css/text.css
+stylesheets[all][] = css/960.css
+stylesheets[all][] = css/style.css
+
+scripts[] = js/jquery.elastic.source.js
+scripts[] = js/charCount.js
+scripts[] = js/script.js
+
+regions[admin] = Admin Bar
+regions[header] = Header
+regions[content_top] = Content Top
+regions[content_bottom] = Content Bottom
+regions[right] = Right Sidebar
+regions[post_content] = Post Content
+regions[footer] = Footer

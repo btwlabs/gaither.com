@@ -1,0 +1,34 @@
+<?php
+// $Id: customsite.module
+
+/**
+* @file
+* Custom functions for this site.
+*/
+function uc_usps_zones_schema() {
+  $schema['uc_usps_zones'] = array(
+    'description' => 'Zone - Order Lookup',
+    'fields' => array(
+      'order_id' => array(
+        'description' => 'Order ID',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+         'default' => 0),
+      'zone' => array(
+        'description' => 'Numeric Zone 1-8.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0),
+           ),
+    'primary key' => array('order_id'),
+  );
+  return $schema;
+}
+function uc_usps_zones_install() {
+  drupal_install_schema('uc_usps_zones');
+}
+function uc_usps_zones_uninstall() {
+  drupal_uninstall_schema('uc_usps_zones');
+}

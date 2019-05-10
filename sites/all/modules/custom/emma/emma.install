@@ -1,0 +1,232 @@
+<?php
+// $Id$
+
+/**
+ * @file
+ * Install, update, and uninstall functions for the Emma API module.
+ *
+ * @author Bob Marchman
+ * @date 07/07/2010
+ */
+
+
+
+
+
+/**
+ * Implementation of hook_install().
+ */
+function emma_install() {
+  drupal_install_schema('emma');
+  
+  // Create our menu. See menu.install for an example.
+  $t = get_t();
+  db_query("INSERT INTO {menu_custom} (menu_name, title, description) VALUES ('%s', '%s', '%s')", 'emma', $t('Emma'), $t('Manage Emma settings, mailing lists, and users.'));
+  
+  $item = array(
+    'link_title' => 'Emma settings',
+    'link_path' => 'admin/emma',
+    'menu_name' => 'emma',
+    'module' => 'emma',
+  );
+  menu_link_save($item);
+}
+
+
+
+
+
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function emma_uninstall() {
+  drupal_uninstall_schema('emma');
+
+  db_query("DELETE FROM {variable} WHERE name LIKE '%s_%%'", 'emma');  
+  
+  db_query("DELETE FROM {menu_custom} WHERE menu_name = 'emma'");
+  db_query("DELETE FROM {menu_links} WHERE module = 'emma'");  
+}
+
+
+
+
+
+/**
+ * Implementation of hook_schema().
+ */
+function emma_schema() {
+  $schema['emma'] = array(
+    'description' => 'Stores Emma mailing list information.',  
+    'fields' => array(
+      'group_id' => array(
+        'description' => 'The group id of the mailing list.',
+        'type' => 'int',
+        'length' => 11,
+        'not null' => TRUE,
+      ),           
+      'list_name' => array(
+        'description' => 'The human readable name of the mailing list.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'signup_url' => array(
+        'description' => 'The URL used for mailing list remote signup.',
+        'type' => 'varchar',
+        'length' => 64,
+        'not null' => TRUE,
+        'default' => '',
+      ),      
+      'signup_post' => array(
+        'description' => 'The signup post number.',
+        'type' => 'int',
+        'length' => 11,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'account_id' => array(
+        'description' => 'The name of the mailing list.',
+        'type' => 'int',
+        'length' => 11,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'username' => array(
+        'description' => 'The username for the mailing list account.',
+        'type' => 'varchar',
+        'length' => 32,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'password' => array(
+        'description' => 'The password for the mailing list account.',
+        'type' => 'varchar',
+        'length' => 32,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'registration' => array(
+        'description' => 'Whether or not users can subscribe to this mailing list on registration.',
+        'type' => 'int',
+        'length' => 11,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'created' => array(
+        'description' => 'Unix timestamp for the creation date of this record.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),   
+      'updated' => array(
+        'description' => 'Unix timestamp for the last time this record was updated.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),         
+    ),
+    'primary key' => array('group_id'),
+    'indexes' => array(
+      'list_name' => array('list_name'),
+    ),
+  );
+
+
+  $schema['emma_users'] = array(
+    'description' => 'Stores which Emma mailing lists users have signed up for.',
+    'fields' => array(
+      'id' => array(
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'description' => 'Primary Key: Auto-incrementing ID',
+      ),      
+      'group_id' => array(
+        'description' => 'The group id of the mailing list.',
+        'type' => 'int',
+        'length' => 11,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'uid' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => 'User ID.',
+      ),
+      'email' => array(
+        'description' => 'The email address for this user.',
+        'type' => 'varchar',
+        'length' => 64,
+        'not null' => TRUE,
+        'default' => '',        
+      ),      
+      'created' => array(
+        'description' => 'Unix timestamp for the creation date of this record.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),      
+    ),
+    'primary key' => array('id'),
+    'indexes' => array(
+      'group_id' => array('group_id'),
+      'uid' => array('uid'),
+      'email' => array('email'),
+    ),
+  );
+ 
+  
+  $schema['emma_fields'] = array(
+    'description' => 'Stores CCK field to Emma mailing list subscription field mappings.',
+    'fields' => array(
+      'id' => array(
+        'description' => 'Primary Key: Auto-incrementing ID',      
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),      
+      'group_id' => array(
+        'description' => 'The group id of the mailing list.',
+        'type' => 'int',
+        'length' => 11,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'type' => array(
+        'description' => 'The name type of fields to map. Is either a content type name or "core profile".',
+        'type' => 'varchar',
+        'length' => 128,
+        'not null' => TRUE,
+        'default' => '',        
+      ),
+      'field_name' => array(
+        'description' => 'The name of the CCK or profile module field name to be mapped.',
+        'type' => 'varchar',
+        'length' => 128,
+        'not null' => TRUE,
+        'default' => '',        
+      ),
+      'emma_field_name' => array(
+        'description' => 'The name of the Emma mailing list subscription field name to be mapped.',
+        'type' => 'varchar',
+        'length' => 128,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+    ),
+    'primary key' => array('id'),
+    'indexes' => array(
+      'group_id' => array('group_id'),
+    ),
+  );
+      
+  return $schema;
+}

@@ -1,0 +1,17 @@
+; $Id$
+name = Content profile pane
+description = Adds a checkout pane for the information required from user registration content profiles.
+dependencies[] = uc_cart
+dependencies[] = content_profile
+dependencies[] = content
+package = Ubercart - extra
+core = 6.x
+php = 5.0
+project status url = "http://features.devmcn.com/fserver"
+
+; Information added by fserver
+core = "6.x"
+datestamp = "1291230427"
+project = "uc_content_profile"
+project status url = "http://features.devmcn.com/fserver"
+version = "6.x-1.0"

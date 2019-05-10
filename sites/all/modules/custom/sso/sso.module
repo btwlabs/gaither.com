@@ -1,0 +1,811 @@
+<?php
+define('SSO_SERVER','http://www.mcnhub.com/');
+
+function sso_perm() 
+{
+	return array('autologin','administer sso');
+}
+
+function sso_menu() 
+{ 
+	$items = array();
+	$items['autologin'] = array(
+		'title' => 'Autologin',
+		'page callback' => 'sso_login',
+		'description' => 'Allows user to login from sso server',
+		'access arguments' => array('autologin'),
+		'type' => MENU_CALLBACK,
+		);
+		
+	$items['userdata'] = array(
+		'title' => 'User Data',
+		'page callback' => 'sso_userdata',
+		'description' => 'Updates user data received from sso server',
+		'access arguments' => array('autologin'),
+		'type' => MENU_CALLBACK,
+		);
+		
+	$items['ssologout'] = array(
+		'title' => 'Logout',
+		'page callback' => 'sso_logout',
+		'description' => 'Updates user data received from sso server',
+		'access arguments' => array('autologin'),
+		'type' => MENU_CALLBACK,
+		);
+	
+	$items['admin/settings/sso'] = array(
+		'title' => t('SSO Configuration'),
+		'access arguments' => array('administer sso'),
+		'page callback' => 'drupal_get_form',
+		'page arguments' => array('sso_admin'),
+		'type' => MENU_NORMAL_ITEM,
+		);
+	
+	return $items;
+}
+
+function sso_admin()
+{	
+	$form = array();
+	$code = variable_get('sso_code','fd538d15-700d-ea94-35a2-68b8d05bc9f7');
+	$mcnhub_logo = variable_get('mcnhub_logo','');
+	$ssoServer = variable_get('SSO_SERVER',SSO_SERVER);
+	$form['sso_acount'] = array(
+		'#type' =>'markup',
+		'#value'=>' <a href="'.$ssoServer.'register.php?c='.$code.'">Modify account</a>'
+		);
+		
+	$form['SSO_SERVER'] = array(
+      '#type' => 'textfield',
+	  '#required' => true,
+	  '#title' => t('Sso Server'),
+	  '#description' =>t('MCNHUB server. E.g:http://www.mcnhub.com/'),
+	  '#maxlength' => 120,
+	  '#default_value' => variable_get('SSO_SERVER', SSO_SERVER)
+	);
+	
+	$form['basic'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Basic Info'),
+      '#collapsible' => TRUE,
+      '#collapsed' => FALSE,
+     ); 
+	
+	$form['basic']['sso_realm'] = array(
+      '#type' => 'textfield',
+	  '#required' => true,
+	  '#title' => t('Realm'),
+	  '#description' =>t('Group to which the website belongs'),'#maxlength' => 120,
+	  '#default_value' => variable_get('sso_realm', sso_default_realm())
+	);
+		
+	$form['basic']['sso_referer'] = array(
+	  '#type' => 'textfield',
+	  '#title' => t('Referer'),
+	  '#description' => t('Domain to which user returns after sso login or logout.'),
+	  '#required' => true,
+	  '#default_value' => variable_get('sso_referer', $_SERVER[HTTP_HOST])
+	);
+	
+	$form['basic']['sso_name'] = array(
+      '#type' => 'textfield',
+	  '#required' => true,
+	  '#title' => t('Site name'),
+	  '#description' =>t('The name displayed on mcnhub'),'#maxlength' => 120,
+	  '#default_value' => variable_get('sso_name', '')
+	);
+	
+	$form['basic']['sso_background_color'] = array(
+      '#type' => 'textfield',
+	  '#required' => false,
+	  '#title' => t('Background Color on mcnhub'),
+	  '#description' =>t('The background color on mcnhub'),'#maxlength' => 120,
+	  '#default_value' => variable_get('sso_background_color', '#FFFFFF')
+	);
+	
+	$form['logo_image'] = array(
+	  '#type' => 'fieldset', 
+	  '#title' => t('Logo image'),
+	  '#description' =>t('Logo image for mcnhub'),
+	 );
+
+	if (strlen($mcnhub_logo)>0)
+	{
+	  $form['logo_image']['_logo_image'] = array(
+	    '#type' =>'hidden',
+		'#value' => $mcnhub_logo,
+	  );
+	  $form['logo_image']['img'] = array(
+	    '#type' => 'markup',
+		'#value'=> '<img src="/'.$mcnhub_logo.'" width="70">',
+	  );
+	}
+    $form['logo_image']['mcnhub_logo'] = array(
+	  '#type' => 'file', 
+	  '#title' => t('Upload logo image'), 
+	  '#size' => 48, 
+	  '#value'=> variable_get('mcnhub_logo',''),
+	  '#description' => t('Maximum dimensions are %dimensions and the maximum size is %size kB.', array('%dimensions' => 	'250x250', '%size' => '30'))
+	  );
+ 
+	
+	$form['urls'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('SSO Urls'),
+      '#collapsible' => TRUE,
+      '#collapsed' => TRUE,
+     ); 
+	 
+	$form['urls']['sso_userdata'] = array(
+	  '#type' => 'textfield',
+	  '#title' => t('User Data Process Page'),
+	  '#description' => t('Page that processes the user data sent by sso server'),
+	  '#required' => true,
+	  '#default_value' => variable_get('sso_userdata', 'userdata')
+	);	
+		
+	$form['urls']['sso_return_url'] = array(
+	  '#type' => 'textfield',
+	  '#title' => t('Return Url after login'),
+	  '#description' => t('Url to which user returns after sso login. This page must process the loginToken'),
+	  '#required' => true,
+	  '#default_value' => variable_get('sso_return_url', 'autologin')
+	);
+		
+	$form['urls']['sso_logout_destination'] = array(
+	  '#type' => 'textfield',
+	  '#title' => t('Return Url after login'),
+	  '#description' => t('Url to which user returns after sso logout.'),
+	  '#required' => true,
+	  '#default_value' => variable_get('sso_logout_destination', 'home')
+	);
+	
+	$form['keys'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('API Keys'),
+      '#collapsible' => TRUE,
+      '#collapsed' => TRUE,
+     );	
+	 
+	$form['keys']['api_keys'] = array(
+		'#type' => 'fieldset',
+		'#title' => t('API Keys'),
+		'#collapsible' => TRUE,
+		'#collapsed' => FALSE,
+		);
+		
+	$form['keys']['sso_drupal_api_key'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Drupal API Key'),
+		'#description' => t('API Key used by sso to verify the drupal page that is processing user data'),
+		'#required' => true,
+		'#default_value' => variable_get('sso_drupal_api_key','drupal api key')
+		);
+		
+	$form['keys']['sso_sso_api_key'] = array(
+		'#type' => 'textfield',
+		'#title' => t('SSO API Key'),
+		'#description' => t('API Key used by drupal module to allow data from sso(to make sure sso is sending data, not somebody else)'),
+		'#required' => true,
+		'#default_value' => variable_get('sso_sso_api_key','sso api key')
+		);
+
+	$form['#attributes']['enctype'] = 'multipart/form-data';
+	$form = system_settings_form($form);
+	return $form;
+}
+
+function sso_admin_validate($form, &$form_values)
+{
+  $drupal_api_key = $form_values['values']['sso_drupal_api_key'];
+  if (!$drupal_api_key) {
+    $drupal_api_key = sso_generate_guid();
+    form_set_value(
+      $form['api_keys']['sso_drupal_api_key'],
+      $drupal_api_key,
+      $form_values
+    );
+  }
+  
+  if (strlen($_FILES['files']['name']['mcnhub_logo'])>0)
+  {
+    $validators = array(
+      'file_validate_is_image' => array(),
+    );
+    if ($file = file_save_upload('mcnhub_logo', $validators)) 
+    {
+          $f =$_SERVER['DOCUMENT_ROOT'] . base_path().file_directory_path().'/mcnhub_logo';          
+	  $info = image_get_info($file->filepath);
+      if (!file_exists($f))
+         mkdir($f,0775);
+      $destination = 'mcnhub_logo/picture'.'.'. $info['extension'];
+      if (file_copy($file, $destination, FILE_EXISTS_REPLACE)) 
+	  {
+        $form_values['values']['mcnhub_logo'] = $file->filepath;
+      }
+      else 
+	  {
+        form_set_error('logo_image', t("Failed to upload the logo image; the mcnhub_logo directory doesn't exist or is not writable. ".$f));
+      }
+    }
+    else form_set_error('mcnhub_logo', 'Check that the uploaded file is an image');
+  }
+  $sso = sso_send_config_data($form_values['values']['SSO_SERVER'],$form_values['values']['sso_sso_api_key'], $drupal_api_key,
+    $form_values['values']['sso_realm'], $form_values['values']['sso_referer'],
+	$form_values['values']['sso_return_url'], $form_values['values']['sso_userdata'],
+	$form_values['values']['sso_logout_destination'], $form_values['values']['sso_assets_path'],
+	$form_values['values']['sso_name'],
+	$form_values['values']['sso_background_color'],
+	$form_values['values']['mcnhub_logo']);
+
+    if ($sso!==true) {
+    form_set_error('sso_assets',$sso);
+   }
+}
+
+/**
+ * Generate a random GUID
+ *
+ * Generate a Globally Unique IDentfier
+ *
+ * @return string The aforementioned GUID.
+ */
+function sso_generate_guid() {
+  if (function_exists('com_create_guid')){ // windows only
+    return trim(com_create_guid(), '{}');
+  }else{
+    mt_srand((double)microtime()*10000);//optional for php 4.2.0 and up.
+    $charid = md5(uniqid(rand(), true));
+    $hyphen = chr(45);// "-"
+    $uuid = substr($charid, 0, 8).$hyphen
+      .substr($charid, 8, 4).$hyphen
+      .substr($charid,12, 4).$hyphen
+      .substr($charid,16, 4).$hyphen
+      .substr($charid,20,12);
+    return $uuid;
+  } // function com_create_guid does not exist
+} // sso_generate_guid
+
+function sso_send_config_data($ssoServer,$sso_key,$drupal_key, $realm, $referer, $autologin, $userdata, $logout, $assets, $name, $bgcolor, $picture)
+{
+	$code = variable_get('sso_code','');
+	$data_to_send = "ssokey=".urlencode($sso_key)."&drupalkey=".urlencode($drupal_key)."&realm=".urlencode($realm)."&referer=".urlencode($referer).
+	                "&autologin=".urlencode($autologin)."&userdata=".urlencode($userdata)."&logout=".urlencode($logout)."&assets=".urlencode($assets).
+					"&name=".urlencode($name)."&bgcolor=".urlencode($bgcolor)."&logo=".urlencode('http://'.$_SERVER['HTTP_HOST'].'/'.$picture)."&code=".urlencode($code);
+	$return = true;
+	$url = $ssoServer."config.php";
+	$response = sso_send_data_to_mcnhub($url,$data_to_send);
+	$responseParts = explode(",",$response);
+	if (isset($responseParts[1]))
+	{
+		$status = explode("=",$responseParts[0]);
+		$code = explode("=",$responseParts[1]);
+		if ($status[1] == "OK")
+		{
+			variable_set('sso_code',$code[1]);
+		}
+		else 
+		{
+			$return = $code[1];
+		}
+	}
+	else $return = $response;
+	return $return;
+}
+
+function sso_send_data_to_mcnhub($url,$data_to_send)
+{
+    $ch = curl_init();
+	curl_setopt($ch,CURLOPT_URL,$url);
+	curl_setopt($ch, CURLOPT_POST, 1);
+	curl_setopt($ch, CURLOPT_POSTFIELDS, $data_to_send);
+	if (strpos($url,'ttps://')>0)
+	{
+	  curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+	  curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+	  $crt =  getcwd()."/".drupal_get_path('module', 'sso')."/mozilla.pem";
+	  curl_setopt($ch, CURLOPT_CAINFO, $crt);
+	}
+	curl_setopt($ch, CURLOPT_HEADER, false);
+	curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+	$response = curl_exec($ch);
+	curl_close($ch);
+	return $response;
+}
+
+function sso_get_user($loginToken)
+{
+    if (strlen(trim($loginToken))==0) return null;
+	$result = db_query("SELECT uid from {sso} WHERE loginToken = '%s'",$loginToken);
+	$userRow = db_fetch_object($result);
+	if ($userRow!=false)
+	{
+		return user_load($userRow->uid);
+	}
+	else
+	{
+		return null;
+	}
+}
+
+function sso_login()
+{
+	if (user_is_anonymous()&&$_GET['loginToken']!='')
+	{
+		$user = sso_get_user($_GET['loginToken']);
+		if ($user!=null && $user!=false)
+		{
+			user_external_login($user);
+			db_query("UPDATE {sso} SET loginToken='' WHERE uid=%d",$user->uid);
+		}
+	}
+	module_invoke_all('sso_autologin', $user);
+	drupal_goto('home');
+}
+
+function sso_userdata()
+{
+	$ssoKey  = variable_get("sso_sso_api_key","");
+	if (!isset($_POST['ssoKey'])) $_POST=$_GET;
+	
+	if (isset($_POST['ssoKey']))
+	{
+		$key = $_POST['ssoKey'];
+		if ($key != $ssoKey)
+			die("Status=ERROR,Message=ERROR: API KEY does not match ");
+	}
+	else 
+		die("Status=ERROR,Message=ERROR: you must provide API KEY");
+		
+	if (isset($_POST['showKey']))
+	{
+		$drupalKey=variable_get("sso_drupal_api_key","default drupal api");
+		die($drupalKey);
+	}
+	
+	if ($_POST['data']!='')
+	{
+		$ssoUser = json_decode($_POST['data']);
+		if ($ssoUser!=NULL)
+		{
+			module_invoke_all('sso_userdata', $ssoUser);
+			
+			$user = sso_load_user_by_sso_data($ssoUser);
+			if ($user == null)
+			{
+				$user = sso_create_user($ssoUser);
+				if ($user==false)
+				{
+				   die("Status=ERROR,Message=ERROR: User could not be created");
+				}
+			}
+			else
+			{
+			  sso_update_user($user, $ssoUser);
+			}
+			sso_save_role_promotion($ssoUser,$user);
+			die("Status=OK,Message=User data was saved");
+		}
+		else die("Status=ERROR,Message=ERROR: Invalid JSON object");
+	}
+	else die("Status=ERROR,Message=ERROR: data must be sent using POST");
+   
+}
+
+function sso_save_role_promotion($ssoUser,$user)
+{
+  $realm = variable_get('sso_realm', sso_default_realm());
+  $time = $ssoUser->now;
+  if (is_null($time)) $time = time();
+  $roles = user_roles(TRUE);
+   $new_role = $user->roles;
+  foreach ($ssoUser->role_promotion as $rolePromotion)
+  {
+    if ($rolePromotion->realm == $realm)
+    {
+      $key = array_search($rolePromotion->roleName, $user->roles);
+      $rId = array_search($rolePromotion->roleName, $roles);
+ 
+      if ($rolePromotion->startDate<=$time && $rolePromotion->endDate>=$time)
+      {
+      	sso_log_role_promotion($ssoUser, $rolePromotion);
+        if ($key==FALSE) $new_role[$rId]  = $rolePromotion->roleName;
+      }	
+      else 
+      {
+        sso_remove_role_promotion($time);
+	    if ($key!=FALSE) unset($new_role[$key]);
+      }		
+    }
+  }
+  user_save($user, array('roles' => $new_role));
+}
+
+function sso_remove_role_promotion($timeOnMcnHub)
+{
+   db_query("delete from membership where %d>endDate", $timeOnMcnHub);
+}
+
+function sso_log_role_promotion($ssoUser, $rolePromotion)
+{
+  try
+  {
+   $query = "insert into membership(id, userId, realm, roleName, startDate, endDate, website, changed, syncTime, syncMethod) 
+             values('".$rolePromotion->id."','". $ssoUser->uid."','".$rolePromotion->realm."',".$rolePromotion->roleName.", ".$rolePromotion->startDate.", '".$rolePromotion->endDate."', ".$rolePromotion->website.", ".$rolePromotion->changed.",". $ssoUser->now.", 'login')";  
+   db_query("insert into membership(id, userId, realm, roleName, startDate, endDate, website, changed, syncTime, syncMethod) 
+             values('%s','%s','%s','%s',%d, %d, '%s', %d, %d, 'login') on duplicate key UPDATE realm=VALUES(realm), roleName=VALUES(roleName), startDate = VALUES(startDate),
+	     endDate=VALUES(endDate), website = VALUES(website), changed=VALUES(changed), syncTime=VALUES(syncTime), syncMethod=VALUES(syncMethod)", $rolePromotion->id, 
+	     $ssoUser->uid, $rolePromotion->realm, $rolePromotion->roleName, $rolePromotion->startDate, $rolePromotion->endDate, $rolePromotion->website, $rolePromotion->changed, $ssoUser->now);
+   }
+   catch (Exception $ex)
+   {
+      $e = print_r($ex,true);
+      mail('blackdreea@gmail.com','log role prootion exception ',$query."<br>".$e);
+      return;
+   }
+}
+
+function sso_load_user_by_sso_data($ssoUser)
+{
+	$result = db_query("SELECT uid from {sso} WHERE guid = '%s'",$ssoUser->uid);
+	$userRow = db_fetch_object($result);
+	if ($userRow!=false)
+	{
+		return user_load($userRow->uid);
+	}
+	$result = db_query("SELECT uid from {users} WHERE mail = '%s'",$ssoUser->mail);
+	$userRow = db_fetch_object($result);
+	if ($userRow!=false)
+	{
+		return user_load($userRow->uid);
+	}
+	return null;
+}
+
+function sso_create_user($ssoUser)
+{
+	$newUser = array(
+		'name' => $ssoUser->name,
+	//	'pass' => $ssoUser->pass,
+		'mail' => $ssoUser->mail,
+		'created' => $ssoUser->created,
+		'status' => 1
+		);           
+	$user = user_save(null, $newUser);
+	if ($user==false)
+	{
+		return false;
+	}
+	
+	$result = sso_update_profile($user->uid,$ssoUser);
+	db_query("INSERT INTO {sso} VALUES('%s',%d,'%s')",$ssoUser->uid,$user->uid,$ssoUser->sid);
+	return $result;
+}
+
+function sso_update_user($user, $ssoUser)
+{
+	db_query("INSERT INTO {sso} VALUES('%s',%d,'%s') on duplicate key update loginToken=VALUES(loginToken)",$ssoUser->uid,$user->uid,$ssoUser->sid);
+
+	if ($user->name!=$ssoUser->name || $user->mail!=$ssoUser->mail || $user->created!=$ssoUser->created)
+	{
+	  $newUser = array(
+		'name' => $ssoUser->name,
+	//	'pass' => $ssoUser->pass,
+		'mail' => $ssoUser->mail,
+		'created' => $ssoUser->created,
+		'status' => 1,
+		'init' => 'email address'
+		);		
+	  $user = user_save($user, $newUser);
+    }
+	sso_update_profile($user->uid,$ssoUser);
+}
+
+function sso_update_profile($uid, $ssoUser)
+{
+	$node = node_load(array("uid" => $uid, "type"=>"uprofile"));
+	$node->type = 'uprofile';
+	$node->creator = 1;
+	$node->title = $ssoUser->name;
+	$node->uid   = $uid;
+	$node->field_first_name_profile[0]['value'] = $ssoUser->firstName;
+	$node->field_last_name_profile[0]['value'] =  $ssoUser->lastName;
+	$node->field_state_profile[0]['value'] =  $ssoUser->state;
+	$node->field_postal_code_profile[0]['value'] = $ssoUser->code;
+	$node->field_country_profile[0]['value'] = sso_get_country_id($ssoUser->country);
+	$node->field_gender_profile[0]['value'] = $ssoUser->gender;
+	$node->field_birthday_profile[0]['value'] = $ssoUser->birthday;
+
+	node_validate($node);
+	node_save($node);
+	return true;
+}
+
+function sso_get_sso_id($uid)
+{
+	$result = db_query("SELECT guid from {sso} WHERE uid = %d",$uid);
+	$userRow = db_fetch_object($result);
+	if ($userRow!=false)
+	{
+		return $userRow->guid;
+	}
+	return null;
+}
+
+function sso_user($op, &$edit, &$account, $category = NULL)
+{
+	if ($op=="logout")
+	{
+		$_REQUEST['destination'] = 'ssologout';
+	}
+}
+
+function sso_form_alter(&$form, &$form_state, $form_id)
+{
+	if ($form_id == "user_profile_form" || $form_id=='uprofile_node_form')
+	{	
+		$form['#submit'][] = 'sso_user_profile_form_submit';
+	}
+}
+
+function add_variable($name, $value, $data_to_send)
+{
+   if (strlen(trim($value))>0)
+      $data_to_send.= '&'.$name.'='.urlencode($value);
+   return $data_to_send;	  
+}
+
+function sso_get_country_id($country_name)
+{
+  $result = db_query("SELECT country_id FROM {uc_countries} where country_iso_code_2='%s'",$country_name);
+  $countryRow = db_fetch_object($result);
+  if ($countryRow!=false)
+  {
+    return $countryRow->country_id;
+  }
+  return null;
+}
+
+function sso_get_country_name($country_id)
+{
+  $result = db_query("SELECT country_iso_code_2 FROM {uc_countries} where country_id=%d",$country_id);
+  $countryRow = db_fetch_object($result);
+  if ($countryRow!=false)
+  {
+    return $countryRow->country_iso_code_2;
+  }
+  return null;
+}
+
+function sso_user_profile_form_submit($form_id, $form_values)
+{
+    $ssoServer = variable_get('SSO_SERVER',SSO_SERVER);
+	$url = $ssoServer."config.php";
+	$data_to_send='';
+	$uid = $form_id['_account']['#value']->uid; 
+	$data_to_send = add_variable("name",$form_values['values']['name'],$data_to_send);
+	$data_to_send = add_variable("mail",$form_values['values']['mail'],$data_to_send);
+	$data_to_send = add_variable("pass",$form_values['values']['pass'],$data_to_send);
+	if (isset($form_values['values']['field_birthday_profile']))
+	{
+		$date = explode('T',$form_values['values']['field_birthday_profile'][0]['value']);
+		if (isset($date[0])) $date = $date[0]; else $date = $form_values['values']['field_birthday_profile'][0]['value'];
+	}
+	
+	if (isset($form_values['values']['field_country_profile']))
+	{	  
+		$country = sso_get_country_name($form_values['values']['field_country_profile'][0]['value']);
+		$data_to_send = add_variable("country",$country,$data_to_send);
+	}
+	if ($uid==null)
+		$uid = $form_values['values']['uid'];
+	$data_to_send = add_variable("firstName",$form_values['values']['field_first_name_profile'][0]['value'],$data_to_send);
+	$data_to_send = add_variable("lastName",$form_values['values']['field_last_name_profile'][0]['value'],$data_to_send);
+	$data_to_send = add_variable("state",$form_values['values']['field_state_profile'][0]['value'],$data_to_send);
+	$data_to_send = add_variable("code",$form_values['values']['field_postal_code_profile'][0]['value'],$data_to_send);
+	$data_to_send = add_variable("gender",$form_values['values']['field_gender_profile'][0]['value'],$data_to_send);
+	$data_to_send = add_variable("birthday",$date,$data_to_send);
+	$guid = sso_get_sso_id($uid);
+	$data_to_send = "ssokey=".variable_get('sso_sso_api_key','sso api key')."&uid=".$guid.$data_to_send;
+	$response = sso_send_data_to_mcnhub($url,$data_to_send);
+	$responseParts = explode(",",$response);
+	if (isset($responseParts[1]))
+	{
+		$status = explode("=",$responseParts[0]);
+		$code = explode("=",$responseParts[1]);
+		if ($status[1] != "OK")
+		{
+			form_set_error('mail',$code[1]);
+		}
+	}
+}
+
+function sso_logout()
+{
+	$realm = variable_get('sso_realm', sso_default_realm());
+	$referer =  variable_get('sso_referer', $_SERVER[HTTP_HOST]);
+	$code = variable_get('sso_code','fd538d15-700d-ea94-35a2-68b8d05bc9f7');
+	$destination = variable_get('sso_logout_destination','home');
+	$ssoServer = variable_get('SSO_SERVER',SSO_SERVER);
+	$sso_logout = $ssoServer."logout.php?c=".$code;
+	drupal_goto($sso_logout);
+}
+
+function sso_default_realm()
+{
+	$realm = str_replace(".com","",$_SERVER[HTTP_HOST]);
+	$realm = str_replace("www.","",$realm);
+	return $realm;
+}
+
+/**
+ * Implementation of hook_block()
+ */
+function sso_get_user_guid($uid)
+{
+	$result = db_query("SELECT guid from {sso} WHERE uid = %d",$uid);
+	$userRow = db_fetch_object($result);
+	if ($userRow!=false)
+	{
+		return $userRow->guid;
+	}
+	return null;
+}
+
+function sso_get_max_sync_time()
+{
+	$result = db_query("select max(syncTime) from {membership} where syncMethod='cron'");
+	$max = db_result($result);
+	if (strlen($max)>0)
+	  return $max;
+	return 0;
+}
+
+function sso_get_fan_club_role_id()
+{
+   $result = db_query("select rid from role where name='fan club member'");
+   $roleId = db_result($result);
+   return $roleId;
+}
+
+function sso_get_time_on_mcnhub()
+{
+   $ssoServer = variable_get('SSO_SERVER',SSO_SERVER);
+   $time = sso_send_data_to_mcnhub($ssoServer."getUpdates.php","requestTime=true");
+   return $time;
+}
+
+function sso_process_membership($result, $roleId, $timeOnMcnHub)
+{
+  $result = "(".substr($result,0,strlen($result)-2);
+  try
+  {
+    db_query("delete from membership_temp");
+    db_query("delete from membership_to_delete");
+    db_query("insert into membership_temp values ".$result);
+    db_query("delete from membership_temp where userId not in (select guid from sso);");
+    db_query("insert into membership_to_delete (select * from membership_temp where %d>endDate)", $timeOnMcnHub);
+    db_query("delete from membership_temp where %d>endDate",$timeOnMcnHub);
+    db_query("insert ignore into users_roles (select u.uid,%d from membership_temp m inner join sso u on m.userId=u.guid);", $roleId);
+    db_query("insert into membership 
+              (select id,userId,realm,roleName,startDate,endDate,website,changed,syncTime,'cron' from membership_temp) 
+	       on duplicate key update roleName=VALUES(roleName), startDate=VALUES(startDate), endDate=VALUES(endDate), website=VALUES(website), 
+	       changed=VALUES(changed), syncTime=VALUES(syncTime), syncMethod=VALUES(syncMethod)");
+    db_query("insert into membership_to_delete (select id, userId, realm, roleName, startDate, endDate, website, changed, syncTime from membership where endDate<%d)",timeOnMcnHub );
+    db_query("delete from membership where %d>endDate", $timeOnMcnHub);
+    db_query("delete from users_roles using users_roles inner join sso on users_roles.uid=sso.uid where rid='%d' and sso.guid in (select userId from membership_to_delete);", $roleId);
+  }
+  catch (Exception $ex)
+  {
+    print_r($ex);
+  }
+}
+
+function sso_process_membership_log($result)
+{
+  $result = "(".substr($result,0,strlen($result)-2);
+  try
+  {
+    db_query("delete from membership_temp");
+    db_query("insert into membership_temp values ".$result);
+    db_query("delete from membership_temp where userId not in (select guid from sso);");;
+    db_query("insert into membership_log 
+              (select id,userId,realm,roleName,startDate,endDate,website,changed,syncTime,'cron' from membership_temp) 
+	       on duplicate key update roleName=VALUES(roleName), startDate=VALUES(startDate), endDate=VALUES(endDate), website=VALUES(website), 
+	       changed=VALUES(changed), syncTime=VALUES(syncTime), syncMethod=VALUES(syncMethod)");
+  }
+  catch (Exception $ex)
+  {
+    print_r($ex);
+  }
+}
+
+function sso_process_userdata($result)
+{
+   $users  = json_decode($result);
+   $i=0;
+   foreach ($users as $ssoUser)
+   {
+     $i++;
+     $user = sso_load_user_by_sso_data($ssoUser);
+     if ($user != null && !(empty($user->pass))) 
+     {
+	   sso_update_user($user, $ssoUser);
+	 }
+   }
+}
+
+function sso_cron()
+{
+	error_reporting(E_ALL);
+	ini_set('display_errors','1');
+	$roleId=sso_get_fan_club_role_id();
+	$time = sso_get_max_sync_time();
+	$time=0;
+	$hubTime = sso_get_time_on_mcnhub();
+	$requestSize = 500;
+	//$types = array('membership','membership_log','userdata');
+	$types = array('userdata');
+	$ssoServer = variable_get('SSO_SERVER',SSO_SERVER);
+	foreach ($types as $type)
+	{
+	  $result = sso_send_data_to_mcnhub($ssoServer."getUpdates.php","type=".$type."&time=".$time."&start=0&size=".$requestSize);
+	  $i=0;
+	  while (strlen($result)>0)
+	  {
+	    if ($type=="membership")
+		{
+		  sso_process_membership($result, $roleId, $hubTime);
+		}
+		else if ($type=='membership_log')
+		{
+		  sso_process_membership_log($result);
+		}
+		else if ($type=='userdata')
+		{
+		   sso_process_userdata($result);
+		}
+		$i+=$requestSize;
+		$result = sso_send_data_to_mcnhub($ssoServer."getUpdates.php","type=".$type."&time=".$time."&start=".$i."&size=".$requestSize);
+		$result="";
+	  }
+	}
+}
+
+function sso_block($op='list', $delta=0, $edit=array()) 
+{
+	global $user;
+	switch ($op) 
+	{
+		case 'list':
+			$blocks[0]['info'] = t('Login status block with link');
+			return $blocks;
+		case 'view':
+			$realm = variable_get('sso_realm', sso_default_realm());
+			$content = "";
+			$ssoServer = variable_get('SSO_SERVER',SSO_SERVER);
+			$code = variable_get('sso_code','fd538d15-700d-ea94-35a2-68b8d05bc9f7');
+			if (user_is_anonymous())
+			{
+				$referer =  variable_get('sso_referer', $_SERVER[HTTP_HOST]);
+				$destination = variable_get('sso_destination','autologin');
+				$userdata = variable_get('sso_userdata','userdata');
+				$content = '<a href="'.$ssoServer.'?c='.$code.'">Click here to login</a>';
+				$content .= ' <iframe src="'.$ssoServer.'iframe.php?c='.$code.'" width="100" height="100"></iframe>';
+			}
+			else
+			{
+				if (!in_array('fan club member', array_values($user->roles))) 
+				{
+					$code = variable_get('sso_code','');
+					$guid = sso_get_user_guid($user->uid);
+					$response = sso_send_data_to_mcnhub($ssoServer."refreshData.php","code=".$code."&guid=".$guid);
+				}
+				$content = '<a href="/logout">Click here to logout.</a>';
+			}
+			$blocks['subject'] = t('Login status');
+			$blocks['status'] = 1; 
+			$blocks['content'] = $content;
+			return $blocks;
+	}
+}

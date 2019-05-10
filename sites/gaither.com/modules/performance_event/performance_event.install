@@ -1,0 +1,121 @@
+<?php
+
+/**
+ * implementation of hook_install()
+ */
+function performance_event_install() {
+  drupal_install_schema('performance_event');
+}
+
+/**
+ * implementation of hook_uninstall()
+ */
+function performance_event_uninstall() {
+  drupal_uninstall_schema('performance_event');
+}
+
+
+/**
+ * implementation of hook_schema()
+ */
+function performance_event_schema() {
+$schema['meet_greet'] = array(
+    'description' => 'Meet and Greet user table',
+    'fields' => array(
+      'id' => array(
+        'description' => 'Prmary Key',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'uid' => array(
+        'description' => 'Reference to {users}.uid.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'start_date' => array(
+        'description' => 'A unix timestamp of the membership starting date.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'end_date' => array(
+        'description' => 'A unix timestamp of the membership ending date.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'approvals' => array(
+        'description' => 'The number of approved meet and greets for the user/ period of time.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+    ),
+    'indexes' => array(
+      'id' => array('id'),
+      'uid' => array('uid'),
+      'approvals' => array('approvals'),
+      'end' => array('end_date'),
+    ),
+  );
+$schema['meet_greet_request'] = array(
+    'description' => 'Tracks the individual meet & greet requests',
+    'fields' => array(
+      'id' => array(
+        'description' => 'Prmary Key',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'nid' => array(
+        'description' => 'Reference to meet & greet {node}.nid.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'uid' => array(
+        'description' => 'Reference to {users}.uid.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'status' => array(
+        'description' => 'The meet/greet request status',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'request_time' => array(
+        'description' => 'A unix timestamp of the request time.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'needs' => array(
+        'description' => 'A text field to store the users special needs',
+        'type' => 'text',
+        'not null' => TRUE,
+        'size' => 'big',
+      ),
+    ),
+    'indexes' => array(
+      'id' => array('id'),
+      'uid' => array('uid'),
+      'nid' => array('nid'),
+      'status' => array('status'),
+      'request_time' => array('request_time'),
+    ),
+  );
+
+  return $schema;
+}

@@ -1,0 +1,158 @@
+name = Gaither Profile
+core = 6.x
+
+
+theme = artistsocial
+
+
+; -----------------------------------------------------------------------------
+;                                  Modules
+; -----------------------------------------------------------------------------
+; List the modules (core, contrib and/or features) to be enabled in the
+; dependencies[] array. Any dependencies of the listed modules will be detected
+; and enabled automatically.
+; -----------------------------------------------------------------------------
+
+; Features
+
+;Required-Core
+
+dependencies[] = block
+dependencies[] = filter
+dependencies[] = node
+dependencies[] = system
+dependencies[] = user
+
+
+;Optional-Core
+
+dependencies[] = comment
+dependencies[] = dblog
+dependencies[] = help
+dependencies[] = menu
+dependencies[] = path
+; dependencies[] = update
+
+
+; Contrib
+
+; WYSIWYG
+dependencies[] = better_formats
+dependencies[] = image_resize_filter
+dependencies[] = imce
+dependencies[] = wysiwyg
+dependencies[] = imce_wysiwyg
+; imce_tools
+dependencies[] = imce_search
+dependencies[] = imce_file_path
+
+
+; CCK Base
+dependencies[] = colorbox
+dependencies[] = content
+dependencies[] = fieldgroup
+dependencies[] = filefield
+dependencies[] = imagefield
+dependencies[] = link
+dependencies[] = number
+dependencies[] = optionwidgets
+dependencies[] = text
+
+; Comments
+dependencies[] = comment_notify
+dependencies[] = mollom
+
+
+; Social Sharing Feature
+dependencies[] = fb_social
+dependencies[] = fb_social_like
+dependencies[] = tweetbutton
+dependencies[] = google_plusone
+dependencies[] = oauth
+dependencies[] = twitter
+dependencies[] = twitter_post
+
+; Complex Layout Feature
+dependencies[] = quicktabs
+dependencies[] = context
+
+
+; Forum
+dependencies[] = acl
+dependencies[] = forum_access
+dependencies[] = forum
+dependencies[] = advanced_forum
+dependencies[] = advanced_forum_more_styles
+dependencies[] = author_pane
+
+; Site Admin ( additions)
+; dependencies[] = update_status 
+dependencies[] = transliteration
+dependencies[] = googleanalytics
+dependencies[] = path_redirect
+
+; MP3Player Feature
+dependencies[] = jplayer
+
+
+; Social Base
+dependencies[] = advanced_profile
+dependencies[] = fivestar
+dependencies[] = privatemsg
+dependencies[] = terms_of_use
+dependencies[] = votingapi
+dependencies[] = wordfilter
+dependencies[] = user_relationships_api
+dependencies[] = user_relationship_defaults
+dependencies[] = user_relationships_ui
+dependencies[] = user_relationship_views
+dependencies[] = ajax
+dependencies[] = formblock
+dependencies[] = mcn_social_form_alter
+dependencies[] = views_field_view
+; views_hacks
+dependencies[] = views_filters_autosubmit
+dependencies[] = content_complete
+dependencies[] = content_profile
+dependencies[] = auto_nodetitle
+dependencies[] = user_badges
+dependencies[] = userpoints
+;; TODO Which ones?
+; dependencies[] = userpoints_contrib
+dependencies[] = userpoints_nc
+dependencies[] = userpoints_login
+dependencies[] = userpoints_user_picture
+dependencies[] = imagecache_profiles
+dependencies[] = rules
+dependencies[] = rules_admin
+dependencies[] = media_mtv
+dependencies[] = media_vimeo
+dependencies[] = media_youtube
+
+dependencies[] = location_cck
+
+; Events Feature
+dependencies[] = jquery_ui
+
+; Views Feature
+dependencies[] = views_customfield
+
+; custom modules
+dependencies[] = performance_event
+
+; Variables
+
+variables[error_level] = 0
+
+; "performance" settings
+variables[page_compression] = 0
+variables[block_cache] = 1
+
+; Update module settings
+variables[update_check_frequency] = "7"
+variables[update_notification_threshold] = "security"
+variables[update_notify_emails][0] = sysadmin@musiccitynetworks.com
+
+variables[admin_theme] = 'rubik'
+variables[configurable_timezones] = '0'
+variables[site_mail] = sysadmin+artistsocial@musiccitynetworks.com

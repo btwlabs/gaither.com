@@ -1,0 +1,6 @@
+; $Id: channel,v 1.0 2011/03/31 12:14:00 yk Exp $
+name = "SSO Autologin Module"
+description = "Module to allow single sign on for multiple sites "
+package = "RealTimeData"
+core = 6.x
+dependencies[] = 'rules'

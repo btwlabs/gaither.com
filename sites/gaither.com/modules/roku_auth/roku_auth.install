@@ -1,0 +1,77 @@
+<?php
+
+/**
+ * Implementation of hook_install
+ */
+function roku_auth_install() {
+  drupal_install_schema('roku_auth');
+} // hook_install
+
+/**
+ * Implementation of hook_uninstall
+ */
+function roku_auth_uninstall() {
+  drupal_uninstall_schema('roku_auth');
+} // hook_uninstall
+
+/**
+ * Implementation of hook_schema
+ */
+function roku_auth_schema() {
+  $schema['roku_auth_linking_code'] = array(
+    'description' => 'Roku linking codes with expiration timestamps',
+    'fields' => array(
+      'linking_code' => array(
+        'type' => 'varchar',
+        'description' => 'The linking code',
+        'length' => 16, // realistically, the cap is 8, but we'll leave room to grow
+        'not null' => TRUE,
+      ),
+      'expiration' => array(
+        'type' => 'int',
+        'description' => 'Timestamp when this code expires',
+        'not null' => TRUE,
+      ),
+    ),
+    'indexes' => array(
+      'linking_code' => array('linking_code'),
+    ),
+    'primary key' => array('linking_code'),
+  );
+  $schema['roku_auth_validation'] = array(
+    'description' => 'Roku/user validation relationships',
+    'fields' => array(
+      'uid' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+      ),
+      'device_token' => array(
+        'type' => 'varchar',
+        'description' => 'Unique device authentication token',
+        'length' => 32,
+        'not null' => TRUE,
+      ),
+      'device_name' => array(
+        'type' => 'varchar',
+        'description' => 'User-assigned nickname for a device',
+        'length' => 256,
+      ),
+      'linking_code' => array(
+        'type' => 'varchar',
+        'description' => 'Matching a linking_code from the roku_auth_linking_code table',
+        'length' => 16, 
+      ),
+      'last_access' => array(
+        'type' => 'int',
+        'description' => 'Timestamp of the last time this device token was accessed',
+      ),
+    ),
+    'indexes' => array(
+      'device_token' => array('device_token'),
+      'uid' => array('uid'),
+    ),
+    'primary key' => array('device_token'),
+    'unique keys' => array('linking_code'),
+  );
+  return $schema;
+} // hook_schema

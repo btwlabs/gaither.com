@@ -1,0 +1,14 @@
+
+name = User Product Badges
+description = Enables assignment of graphical badges to users and roles.
+dependencies[] = user_badges
+dependencies[] = ec_product
+
+core = 6.x
+
+; Information added by drupal.org packaging script on 2011-02-25
+version = "6.x-1.x-dev"
+core = "6.x"
+project = "user_badges"
+datestamp = "1298620587"
+

@@ -1,0 +1,69 @@
+<?php
+// $Id: emma_block.install,v 1.1 2010/06/25 09:58:12 elusivemind Exp $
+
+/**
+ * @file
+ * This defines our schema for the module
+ */
+
+/**
+ * Implementation of hook_schema()
+ */
+function emma_block_schema() {
+  $schema['emma_block'] = array(
+    'description' => 'A table of emma mailing lists',
+    'fields' => array(
+      'id' => array(
+        'description' => 'The mailing list key.',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE),
+      'list_name' => array(
+        'description' => 'The name of the mailing list',
+        'type' => 'varchar',
+        'length' => 64,
+        'not null' => TRUE),
+      'signup_post' => array(
+        'description' => 'The signup post number',
+        'type' => 'int',
+        'length' => 11,
+        'not null' => TRUE),
+      'account_id' => array(
+        'description' => 'The name of the mailing list',
+        'type' => 'int',
+        'length' => 11,
+        'not null' => TRUE),
+      'username' => array(
+        'description' => 'The username for the mailing list account.',
+        'type' => 'varchar',
+        'length' => 32,
+        'not null' => TRUE),
+      'password' => array(
+        'description' => 'The password for the mailing list account.',
+        'type' => 'varchar',
+        'length' => 32,
+        'not null' => TRUE),
+      'group_id' => array(
+        'description' => 'The group id.',
+        'type' => 'int',
+        'length' => 11,
+        'not null' => TRUE),
+    ),
+    'primary key' => array('id'),
+  );
+  return $schema;
+}
+
+/**
+ * Install Emma Block module
+ */
+function emma_block_install() {
+  drupal_install_schema('emma_block');
+}
+
+/**
+ * Uninstall Emma Block module
+ */
+function emma_block_uninstall() {
+  drupal_uninstall_schema('emma_block');
+}

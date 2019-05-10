@@ -1,0 +1,276 @@
+<?php
+// $Id$
+
+/**
+ * @file
+ * Provides a much more flexible notification system for expiring Ubercart role
+ *   promotions in the form of e-mails before or after roles expire with
+ *   different timing for the various role promotions on the site.
+ */
+
+
+require_once 'uc_rolenotify.ca.inc';
+
+/**
+ * Implementation of hook_menu().
+ */
+function uc_rolenotify_menu() {
+  $items = array();
+
+  $items['admin/store/settings/rolenotify'] = array(
+    'title' => 'Role expiration notifications',
+    'description' => 'Configure e-mail notifications for role expirations.',
+    'page callback' => 'uc_rolenotify_list',
+    'access arguments' => array('administer role notifications'),
+    'type' => MENU_NORMAL_ITEM,
+    'file' => 'uc_rolenotify.admin.inc',
+  );
+  $items['admin/store/settings/rolenotify/list'] = array(
+    'title' => 'List',
+    'access arguments' => array('administer role notifications'),
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'weight' => -10,
+    'file' => 'uc_rolenotify.admin.inc',
+  );
+  $items['admin/store/settings/rolenotify/add'] = array(
+    'title' => 'Add notification',
+    'description' => 'Add a new role expiration notification.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('uc_rolenotify_edit_form'),
+    'access arguments' => array('administer role notifications'),
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 0,
+    'file' => 'uc_rolenotify.admin.inc',
+  );
+  $items['admin/store/settings/rolenotify/settings'] = array(
+    'title' => 'Settings',
+    'description' => 'Configure settings for the role expiration notifications.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('uc_rolenotify_settings_form'),
+    'access arguments' => array('administer role notifications'),
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 10,
+    'file' => 'uc_rolenotify.admin.inc',
+  );
+  $items['admin/store/settings/rolenotify/%uc_rolenotify/edit'] = array(
+    'title' => 'Edit a notification',
+    'description' => 'Edit a role expiration notification.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('uc_rolenotify_edit_form', 4),
+    'access arguments' => array('administer role notifications'),
+    'type' => MENU_CALLBACK,
+    'file' => 'uc_rolenotify.admin.inc',
+  );
+  $items['admin/store/settings/rolenotify/%uc_rolenotify/delete'] = array(
+    'title' => 'Delete a notification',
+    'description' => 'Delete a role expiration notification.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('uc_rolenotify_delete_confirm_form', 4),
+    'access arguments' => array('administer role notifications'),
+    'type' => MENU_CALLBACK,
+    'file' => 'uc_rolenotify.admin.inc',
+  );
+
+  return $items;
+}
+
+/**
+ * Implementation of hook_perm().
+ */
+function uc_rolenotify_perm() {
+  return array('administer role notifications');
+}
+
+/**
+ * Implementation of hook_enable().
+ */
+function uc_rolenotify_enable() {
+  // Update the role renewal predicate to use the rolenotify action.
+  $predicate = ca_load_predicate('uc_role_renewal');
+
+  for ($i = 0, $j = count($predicate['#actions']); $i < $j; $i++) {
+    if ($predicate['#actions'][$i]['#name'] == 'uc_roles_order_renew') {
+      $predicate['#actions'][$i]['#name'] = 'uc_rolenotify_order_renew';
+      $predicate['#actions'][$i]['#title'] = t('Grant/renew roles and setup notifications');
+    }
+  }
+
+  ca_save_predicate($predicate);
+}
+
+/**
+ * Implementation of hook_disable().
+ */
+function uc_rolenotify_disable() {
+  // Reset the role renewal predicate to use the default action.
+  $predicate = ca_load_predicate('uc_role_renewal');
+
+  for ($i = 0, $j = count($predicate['#actions']); $i < $j; $i++) {
+    if ($predicate['#actions'][$i]['#name'] == 'uc_rolenotify_order_renew') {
+      $predicate['#actions'][$i]['#name'] = 'uc_roles_order_renew';
+      $predicate['#actions'][$i]['#title'] = t('Update all role expirations for this order.');
+    }
+  }
+
+  ca_save_predicate($predicate);
+}
+
+/**
+ * Implementation of hook_cron().
+ */
+function uc_rolenotify_cron() {
+  $result = db_query_range("SELECT rnq.*, rp.nid AS product_nid FROM {uc_rolenotify_queue} AS rnq LEFT JOIN {uc_roles_products} AS rp ON rnq.rpid = rp.rpid WHERE rnq.notify <= %d AND rnq.notified = 0", time(), 0, variable_get('uc_rolenotify_cron_limit', 25));
+
+  while ($row = db_fetch_object($result)) {
+    if ($rolenotify = uc_rolenotify_load($row->rnid)) {
+      // Load the expiration and user account.
+      $expiration = db_fetch_object(db_query("SELECT * FROM {uc_roles_expirations} WHERE reid = %d", $row->reid));
+      $account = user_load(array('uid' => $expiration->uid));
+      $product = node_load($row->product_nid);
+
+      // Send the e-mail through the order mailer.
+      $rolenotify->email['replacements'] = array(
+        'global' => NULL,
+        'user' => $account,
+        'uc_roles' => $expiration,
+        'node' => $product,
+        'product' => $product,
+      );
+
+      // Replace tokens and parse recipients.
+      $recipients = array();
+      $addresses = token_replace_multiple($rolenotify->email['addresses'], $rolenotify->email['replacements']);
+      foreach (explode("\n", $addresses) as $address) {
+        $recipients[] = trim($address);
+      }
+
+      // Send to each recipient.
+      $notified = 0;
+
+      foreach ($recipients as $email) {
+        $sent = drupal_mail('uc_order', 'action-mail', $email, uc_store_mail_recipient_language($email), $rolenotify->email, $rolenotify->email['from']);
+
+        if (!$sent['result']) {
+          watchdog('uc_rolenotify', 'Attempt to e-mail @email about a role expiration failed.', array('@email' => $email), WATCHDOG_WARNING);
+
+          if ($notified == 1) {
+            $notified = 3;
+          }
+        }
+        elseif ($notified == 0) {
+          // If even 1 e-mail makes it through, mark this as complete.
+          $notified = 1;
+        }
+      }
+
+      db_query("UPDATE {uc_rolenotify_queue} SET notified = %d WHERE qid = %d", $notified, $row->qid);
+    }
+    else {
+      // If the notification no longer exists, update the queue to 2 to indicate
+      // the notification time has been passed but it was not sent.
+      db_query("UPDATE {uc_rolenotify_queue} SET notified = 2 WHERE qid = %d", $row->qid);
+    }
+  }
+}
+
+/**
+ * Load a role expiration notification from the database.
+ *
+ * @param $rnid
+ *   The role expiration notification ID.
+ * @return
+ *   An object containing the settings for the specified notification; returns
+ *     FALSE if the notification is not found.
+ */
+function uc_rolenotify_load($rnid) {
+  $rolenotify = db_fetch_object(db_query("SELECT rn.* FROM {uc_rolenotify} AS rn WHERE rnid = %d", $rnid));
+
+  if ($rolenotify) {
+    // Unserialize the e-mail settings.
+    $rolenotify->email = unserialize($rolenotify->email);
+
+    // Load the role assignment product feature data into the object.
+    $rolenotify->feature = db_fetch_object(db_query("SELECT rp.*, r.name AS role_name, n.title AS product_title FROM {uc_roles_products} AS rp LEFT JOIN {role} AS r ON rp.rid = r.rid LEFT JOIN {node} AS n ON rp.nid = n.nid WHERE rp.rpid = %d", $rolenotify->rpid));
+  }
+
+  return $rolenotify;
+}
+
+/**
+ * Save a role expiration notification to the database.
+ *
+ * @param $rolenotify
+ *   The fully loaded role expiration notification object.
+ */
+function uc_rolenotify_save(&$rolenotify) {
+  // If there is no rnid on the notification object...
+  if (!isset($rolenotify->rnid)) {
+    // Insert it as a new row.
+    drupal_write_record('uc_rolenotify', $rolenotify);
+  }
+  else {
+    // Otherwise update the existing row.
+    drupal_write_record('uc_rolenotify', $rolenotify, 'rnid');
+  }
+}
+
+/**
+ * Delete a role expiration notification from the database.
+ *
+ * @param $rolenotify
+ *   The fully loaded role expiration notification object.
+ */
+function uc_rolenotify_delete($rolenotify) {
+  db_query("DELETE FROM {uc_rolenotify} WHERE rnid = %d", $rolenotify->rnid);
+}
+
+function uc_rolenotify_process_notifications($op, $feature, $expiration) {
+  // If we're dealing with a role renewal...
+  if ($op == 'renew') {
+    // Delete any unsent notifications for this role expiration.
+    db_query("DELETE FROM {uc_rolenotify_queue} WHERE reid = %d AND notified = 0", $expiration->reid);
+  }
+
+  // Select any notifications associated with the product feature that is being
+  // processed.
+  $result = db_query("SELECT * FROM {uc_rolenotify} WHERE rpid = %d", $feature->rpid);
+
+  while ($rolenotify = db_fetch_object($result)) {
+    // Build a string representing the relative amount of time to the role
+    // expiration that the notification should be sent.
+    $time = $rolenotify->time_relative == 0 ? '-' : '+';
+    $time .= $rolenotify->time_number .' '. $rolenotify->time_unit;
+
+    // Build a new item to go in the notification queue.
+    $data = (object) array(
+      'reid' => $expiration->reid,
+      'rnid' => $rolenotify->rnid,
+      'rpid' => $feature->rpid,
+      'notify' => strtotime($time, $expiration->expiration),
+    );
+
+    uc_rolenotify_queue_save($data);
+  }
+}
+
+/**
+ * Save an item to the role expiration notification queue.
+ *
+ * @param $data
+ *   An object containing the data for the queued notification, including the
+ *     reid of the expiration, the rnid of the notification, the rpid of the
+ *     role assignment product feature, the notify timestamp, and the notified
+ *     indicator. If a qid is specified, that row wll be updated. Otherwise this
+ *     data will be inserted as a new item in the queue.
+ */
+function uc_rolenotify_queue_save(&$data) {
+  // If the data object doesn't already have a qid...
+  if (!isset($data->qid)) {
+    // Insert this as a new item in the queue.
+    drupal_write_record('uc_rolenotify_queue', $data);
+  }
+  else {
+    // Otherwise update the existing item.
+    drupal_write_record('uc_rolenotify_queue', $data, 'qid');
+  }
+}

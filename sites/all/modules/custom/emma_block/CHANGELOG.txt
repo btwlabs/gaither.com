@@ -1,0 +1,26 @@
+; $Id: CHANGELOG.txt,v 1.1 2010/06/25 09:58:12 elusivemind Exp $
+
+CHANGELOG
+---------
+V1.0-beta5
+* code cleanup mostly
+* removed unused item from menu callbacks
+* removed duplicate variable assignments in emma_block_subscribe_member()
+
+v1.0-beta1
+* re-did administrative area so that we can add lists without having
+  to increase a counter variable
+* uses a table now as opposed to Drupal variables
+* response codes generate user feedback
+* re-worked administrative menu
+
+v1.0-alpha3
+* added permissions based system
+* cleaned up some of the menu array
+
+v1.0-alpha2
+* changed mailing list selections to check boxes
+* mechanism for selecting multiple lists is now working
+
+v1.0-alpha1
+* initial released version

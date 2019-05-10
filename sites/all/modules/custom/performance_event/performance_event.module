@@ -1,0 +1,849 @@
+<?php
+// $Id$
+ 
+/**
+ * @file
+ * Provides a Perfomance Event and Meet and Greet node type.
+ *
+ */
+
+/**
+ * Implementation of hook_menu()
+ */
+function performance_event_menu() {
+  $items = array();
+  $items['admin/settings/meet_greet'] = array(
+    'title' => t('Meet and Greet Settings'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('performance_event_meet_greet_settings_form'),
+    'access arguments' => array('administer meet and greet'),
+    'file' => 'performance_event_admin.inc',
+  );
+  $items['meet_greet/request/%node'] = array(
+    'title' => t('Meet and Greet Request form'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('performance_event_meet_greet_request_form', 2),
+    'access callback' => 'performance_event_meet_greet_request_access',
+    'access arguments' => array(2),
+    'file' => 'performance_event_admin.inc',
+  );
+  $items['user/%user/meet_greets'] = array(
+    'title' => t('Your Meet and Greet requests'),
+    'page callback' => 'performance_event_meet_greet_user_page',
+    'page arguments' => array(1),
+    'access callback' => 'performance_event_meet_greet_user_page_access',
+    'access arguments' => array(1),
+    'file' => 'performance_event_admin.inc',
+    'type' => MENU_LOCAL_TASK,
+  );
+  //for band
+  $items['meet_greet/review/%node'] = array(
+    'title' => t('Manage meet and greet'),
+    'page callback' => 'performance_event_meet_greet_manage_requests',
+    'page arguments' => array(2),
+    'access arguments' => array('administer meet and greet'),
+    'file' => 'performance_event_admin.inc',
+  );
+  $items['node/%node/meet_greets'] = array(
+    'title' => t('Meet and Greets'),
+    'access callback' => 'performance_event_manage_meet_greet_access',
+    'access arguments' => array(1),
+    'page callback' => 'performance_event_manage_meet_greets',
+    'page arguments' => array(1),
+    'type' => MENU_LOCAL_TASK,
+    'file' => 'performance_event_admin.inc',
+  );
+
+  return $items;
+}
+
+
+
+/**
+ * Implementation of hook_node_info().
+ */
+function performance_event_node_info() {
+  // We return an array since a module can define multiple node types.
+  return array(
+    'performance_event' => array(
+      'name' => t('Performance Event'), // Human readable name. Required.
+      'module' => 'performance_event',  // Machine readable name. (alphanueric, '_' only) Required.
+      'description' => t('An event that has a venue, date, time.  The event can also have meet and greet and pre-sale tickets associated with it.'), // Required.
+      'has_title' => TRUE,
+      'title_label' => t('Event Title'),
+      'has_body' => FALSE,
+      'body_label' => t(''),
+      'min_word_count' => 0,
+      'locked' => TRUE
+    ),
+    'meet_greet' => array(
+      'name' => t('Meet and Greet'), // Human readable name. Required.
+      'module' => 'performance_event',  // Machine readable name. (alphanueric, '_' only) Required.
+      'description' => t('A meet and greet event that is usually tied to a performance event.  Users can apply for meet and greet events based on certain criteria.'), // Required.
+      'has_title' => TRUE,
+      'title_label' => t('Meet and Greet Event Title'),
+      'has_body' => FALSE,
+      'body_label' => t(''),
+      'min_word_count' => 0,
+      'locked' => TRUE
+    ),
+  );
+}
+ 
+ 
+/**
+ * Implementation of hook_perm().
+ */
+function performance_event_perm() {
+  return array('administer performance', 'create performance event', 'edit own performance event', 'edit any performance event', 'delete own performance event', 'delete any performance event', 'create meet and greet', 'edit own meet and greet', 'edit any meet and greet', 'delete own meet and greet', 'delete any meet and greet', 'administer meet and greet', 'create profile', 'edit own profile', 'edit any profile', 'delete own profile', 'delete any profile', 'administer profile') ;
+}
+ 
+/**
+ * Implementation of hook_access().
+ */
+function performance_event_access($op, $node, $account) {
+  switch ($node->type) {
+    case 'performance event':
+      if ($op == 'create') {
+        return(user_access('create performance event', $account));
+      }
+      if ($op == 'update') {
+       return (user_access('edit any performance event',$account) || (user_access('edit own performance event',$account) && ($account->uid == $node->uid)));
+      }
+      if ($op == 'delete') {
+       return (user_access('delete any performance event',$account) || (user_access('delete own performance event',$account) && ($account->uid == $node->uid)));
+      }
+    break;
+    case 'meet_greet':
+      if ($op == 'create') {
+        return(user_access('create meet and greet', $account));
+      }
+      if ($op == 'update') {
+        return (user_access('edit any meet and greet',$account) || (user_access('edit own meet and greet',$account) && ($account->uid == $node->uid)));
+      }
+      if ($op == 'delete') {
+        return (user_access('delete any meet and greet',$account) || (user_access('delete own meet and greet',$account) && ($account->uid == $node->uid)));
+      }
+      if ($op == 'view') {
+        return(user_access('view meet and greet', $account));
+      }
+    break;
+  }
+}
+ 
+/**
+ * Implementation of hook_form().
+ */
+function performance_event_form($node) {
+  global $args;
+  $node_info = performance_event_node_info();
+
+  // if creating a new meet and greet via button on Performance Event tab "Manage Meet and greets"
+  if ($node->type =='meet_greet') {
+    $form['performance_nid'] = array (
+      '#type' => 'hidden',
+      '#default_value' => arg(3),
+    );
+  }
+
+  $form['title'] = array(
+    '#type' => 'textfield',
+    '#title' =>  $node_info['performance_event']['title_label'],
+    '#default_value' => $node->title,
+    '#size' => 60,
+    '#maxlength' => 60,
+    '#weight' => -5,
+  );
+  return $form;
+}
+
+/**
+ * Implementation of hook_insert().
+ */
+function performance_event_insert($node) {
+  if ($node->type == 'meet_greet') {
+    if ($node->performance_nid) {
+      performance_event_add_meet_greet_to_performance ($node->nid, $node->performance_nid);
+      //drupal_goto('node/' . $node->performance_nid . '/edit/meet_greets');
+    }
+  }  
+}
+
+/**
+ * Implementation of hook_view().
+ */
+function performance_event_view($node, $teaser = FALSE, $page = FALSE) {
+ 
+  if (!$teaser) {
+  // Use Drupal's default node view.
+    $node = node_prepare($node, $teaser);
+  }
+ 
+  if ($teaser) {
+  // Use Drupal's default node view.   
+    $node = node_prepare($node, $teaser);
+  }
+ 
+  return $node;
+}
+ 
+ 
+/**
+ * Implementation of hook_views_api().
+ */
+function performance_event_views_api() {
+  return array(
+    'api' => 2,
+    'path' => drupal_get_path('module', 'performance_event') . '/includes',
+  );
+}
+
+/**
+ * Implementation of hook_enable()
+ */
+function performance_event_enable() {
+  //Add the proper roles
+  foreach (array('fan club member', 'account manager', 'client', 'store administrator', 'site administrator') as $role) {
+    drupal_set_message(t('added %role role', array('%role' => $role)));
+    if (db_result(db_query("SELECT COUNT(*) FROM {role} WHERE name = '%s'", $role)) == 0) {
+      db_query("INSERT INTO {role} (name) VALUES ('%s')", $role);
+    }
+  }
+  $form_state = array();
+  //issues - once enabled, can't uninstall
+  //content copy module - "export" 
+  module_load_include('inc', 'node', 'node.pages'); // new for D6, eliminates "First argument is expected to be a valid callback, 'node_form'" error
+
+  // set directory name 
+  $dir = drupal_get_path('module', 'performance_event') . "/includes"; 
+
+  // set pattern 
+  $pattern = "*.cck";
+
+  // open directory and parse file list 
+  if (is_dir($dir)) { 
+    if ($dh = opendir($dir)) { 
+      // iterate over file list 
+      while (($filename = readdir($dh)) !== false) {
+        // if filename matches search pattern, add to form_state 
+        if (fnmatch($pattern, $filename)) {
+          $content = implode('', file($dir . '/' . $filename));
+
+          // Build form state
+          $form_state = array(
+            'values' => array(
+              'macro' => $content,
+              'op' => 'Import',
+              'submitted' => 1
+            ),
+          );
+          
+          // Put it in there
+          drupal_execute('content_copy_import_form', $form_state, substr($filename, 0, -strlen($pattern)+1));
+        } // if (fnmatch($pattern, $filename)) statement
+      } 
+    // close directory 
+    closedir($dh); 
+    } 
+  }
+  variable_set(content_profile_use_profile, TRUE);
+}
+
+
+/**
+ * Implementation of hook_theme();
+ */
+function performance_event_theme() {
+  return array(
+    'performance_event_meet_greet_manage_requests_form' => array(
+      'arguments' => array('form' => NULL),
+    ),
+    'performance_event_meet_greet_request_status' => array(
+      'arguments' => array('status' => NULL),
+    ),
+    'performance_event_manage_meet_greets_form' => array(
+      'arguments' => array('form' => NULL),
+    ),
+    'performance_event_formatter_meet_greet' => array(
+      'arguments' => array('elements' => NULL),
+    ),
+    'performance_event_formatter_adv_ticket_link' => array(
+      'arguments' => array('elements' => NULL),
+    ),
+    'performance_event_formatter_std_ticket_link' => array(
+      'arguments' => array('elements' => NULL),
+    ),
+    'performance_event_formatter_node_adv_ticket_link' => array(
+      'arguments' => array('elements' => NULL),
+    ),
+    'performance_event_formatter_node_std_ticket_link' => array(
+      'arguments' => array('elements' => NULL),
+    ),
+
+  );
+}
+
+/**
+ * Implementation of hook_token_list();
+ */
+function performance_event_token_list($type = 'all') {
+  if ($type == 'node' || $type == 'all') {
+    $tokens['node']['performance_event_title']      = t("The Title of a Preformance Event");
+    $tokens['node']['meet_greet_title']      = t("The Title of a Meet and Greet");
+    return $tokens;
+  }
+}
+
+/**
+ * Implementation of hook_token_values();
+ */
+function performance_event_token_values($type, $object = NULL, $options = array()) {
+  if ($type == 'node') {
+    $node = $object;
+    if ($node->type == 'performance_event') {
+      $tokens['performance_event_title'] = $node->title;
+    }
+    elseif ($node->type == 'meet_greet') {
+      $tokens['meet_greet_title'] = $node->title;
+    }
+    return $tokens;
+  }
+}
+
+/**
+ * Implementation of hook_token_values().
+ *
+ * Constructs the email notification message when the site is out of date.
+ *
+ * @param $key
+ *   Unique key to indicate what message to build, e.g. notify meet and greet request registered, won. lost, 
+ * @param $message
+ *   Reference to the message array being built.
+ * @param $params
+ *   Array of parameters to indicate what text to include in the message body.
+ *
+ * @see drupal_mail()
+ */
+function performance_event_mail($key, &$message, $params) {
+  $message['subject'] .= $params['subject'];
+  $message['body'][] = $params['body'];
+  $message['headers']['MIME-Version'] = '1.0';
+  $message['headers']['Content-Type'] = 'text/html; charset=utf-8';
+}
+
+
+/**
+ * (default userstatus)
+ * function performance_event_meet_greet_default_status() return a default
+ * status based on the users profile information.  This can be used to
+ * automatically disapprove problem users
+ */
+function performance_event_meet_greet_default_status($user) {
+  //needs to allow for siddaproval
+  return 1;
+}
+
+/**
+ * function performance_event_meet_greet_save_request() is a helper function to
+ * save meet and greet request.
+ */
+function performance_event_meet_greet_save_request($request) {
+  $request = (object) $request;
+  drupal_write_record('meet_greet_request', $request);
+}
+
+
+function performance_event_manage_meet_greet_access ($node) {
+  if ($node->type == 'performance_event' && user_access('create meet and greet')) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * function performance_event_meet_greet_request_access
+ * provides access checking based on the individual meet/greet permissions
+ */
+function performance_event_meet_greet_request_access($node) {
+  GLOBAL $user;
+
+  foreach ($node->field_purchase_role as $purchase_role) {
+    $meet_greet_roles[] = $purchase_role['value'];
+  }
+  foreach ($user->roles as $key => $value) {
+    $user_roles[] = $key;
+  }
+  
+  //Does the user have the proper role to register for the meet and greet?
+  $arr = array_intersect($user_roles, $meet_greet_roles);
+  if (!$arr ) {
+    drupal_set_message('You do not have permission to request a meet and greet for this event.');
+    return FALSE;
+  }
+
+  $current_attendees = db_result(db_query('SELECT COUNT(*) FROM {meet_greet_request} WHERE nid = %s AND status > 1', $node->nid));
+  if ($current_attendees >= $node->field_available[0]['value']) {
+    drupal_set_message(t('The %event event is full.', array('%event' => $node->title)));
+    drupal_goto('tourdates');
+  }
+
+  //Check to see if the user has already applied for the event
+  if (db_result(db_query('SELECT count(*) FROM {meet_greet_request} WHERE nid = %d AND uid = %d', $node->nid, $user->uid))) {
+    drupal_set_message(t('You have already submitted a request for this event'));
+    drupal_goto('tourdates');
+  }
+
+  //Check to see if the user has already used the maximum number of meet and greets
+  $time = strtotime($node->field_meet_greet_date[0]['value']);
+  $approved_requests = db_result(db_query("
+    SELECT approvals FROM {meet_greet} WHERE uid = %d AND end_date > %s AND start_date < %s",
+    $user->uid, $time, $time));
+
+  $allowed_requests = variable_get('performance_event_meet_greet_max_events', 3);
+  if ($approved_requests >= $allowed_requests) {
+    drupal_set_message(t('You have already received your maximum number of Meet and Greets for the membership year.'));
+    drupal_goto('user/'.$user->uid.'/meet_greets');
+  }
+
+  if ($node->field_meet_greet_status[0]['value'] != 'Open') {
+    drupal_set_message('The meet and greet is not accepting requests at this time.');
+    drupal_goto('tourdates');
+  }
+
+  //Verify the membership is active during for the meet and greet
+  if (!db_result(db_query('
+    SELECT count(*) FROM {meet_greet} WHERE uid = %d AND end_date > %d AND start_date < %d',
+    $user->uid, $time, $time))) {
+    drupal_set_message(t('Your membership will expire before this event'));
+    return false;
+  }
+  return TRUE;
+}
+
+/**
+ * function performance_event_meet_greet_user_page_access()
+ * Checks to see if the user is allowed to access the users meet/greet info
+ */
+function performance_event_meet_greet_user_page_access($account = NULL) {
+  global $user;
+  if ($account && ($account->uid == $user->uid)) {
+    return true;
+  }
+
+  return user_access('administer meet and greet');
+}
+
+function theme_performance_event_meet_greet_manage_requests_form($form) {
+  drupal_add_css(drupal_get_path('module', 'performance_event') .'/performance_event.css');
+  if (count($form['requests']) > 0) {
+    $header = array(
+      '',
+      t('user'),
+      t('Status'),
+      t('Flag'),
+      t('Name'),
+      t('Meet and Greets'),
+      t('Last meet and Greet'),
+      t('Special Needs'),
+    );
+    $rows = array();
+    foreach(element_children($form['requests']) as $key) {
+      $user = drupal_render($form['requests'][$key]['uid']);
+      $status = drupal_render($form['requests'][$key]['status']);
+      $flag = drupal_render($form['requests'][$key]['flag']);
+      $name = drupal_render($form['requests'][$key]['name']);
+      $won = drupal_render($form['requests'][$key]['won']);
+      $date = drupal_render($form['requests'][$key]['date']);
+      $needs = drupal_render($form['requests'][$key]['needs']);
+      $rows[] = array(
+        drupal_render($form['requests'][$key]),
+        $user,
+        $status,
+        $flag,
+        $name,
+        $won,
+        $date,
+        $needs,
+      );
+      //drupal_render($form['requests'][$key]);
+    }
+    $output = drupal_render($form);
+    $output .= theme('table', $header, $rows);
+    return $output;
+  }
+}
+
+
+function theme_performance_event_manage_meet_greets_form($form) {
+  //raj not finished
+  //dpr($form);
+  drupal_add_css(drupal_get_path('module', 'performance_event') .'/performance_event.css');
+  if (count($form['meet_greets']) > 0) {
+    $header = array(
+      '',
+      t('Meet and Greet'),
+      t('Date'),
+      t('Available'),
+      t('Requests'),
+      t('Won'),
+      t('Status'),
+      //t('Operation'),
+    );
+    $rows = array();
+    foreach (element_children($form['meet_greets']) as $key) {
+      $meet_greet = drupal_render($form['meet_greets'][$key]['nid']);
+      $date = drupal_render($form['meet_greets'][$key]['date']);
+      $available = drupal_render($form['meet_greets'][$key]['available']);
+      $requests = drupal_render($form['meet_greets'][$key]['requests']);
+      $won = drupal_render($form['meet_greets'][$key]['won']);
+      $status = drupal_render($form['meet_greets'][$key]['status']);
+      //$operation = drupal_render($form['meet_greets'][$key]['operation']);
+      $rows[] = array(
+        drupal_render($form['meet_greets'][$key]),
+        $meet_greet,
+        $date,
+        $available,
+        $requests,
+        $won,
+        $status,
+        //$operation
+      );
+      //drupal_render($form['requests'][$key]);
+    }
+    $output = drupal_render($form);
+    $output .= theme('table', $header, $rows);
+    return $output;
+  }
+}
+function performance_event_add_meet_greet_to_performance($meet_greet_nid, $performance_nid) {
+  $node = node_load($performance_nid);
+  $node->field_meet_greet_reference[] = array('nid' => $meet_greet_nid);
+  node_save($node);
+  
+}
+
+/**
+ * Implementation of hook_ca_action().
+ *
+ */
+function performance_event_ca_action() {
+
+   $actions['year_performance_event_membership_increment'] = array(
+    '#title' => t('Incremement Year Increment the User\'s Membership'),
+    '#category' => t('User'),
+    '#callback' => 'performance_event_membership_increment',
+    '#arguments' => array(
+       'order' => array( '#entity' => 'uc_order', '#title' => t('Order') ,
+
+    ),
+  ),
+);
+  return $actions;
+}
+
+/**
+ * Performance_Event_Membership_Increment()
+ *
+ * CA to determine if the user is a member of the meet and greet
+ * */
+function performance_event_membership_increment($order, $settings = array()){
+  $sql = "select end_date from {meet_greet} where uid = %d order by end_date desc limit 1";
+  $result = db_fetch_object(db_query($sql, $order->uid));
+  $now = time();
+  if (($result->end_date < $now) || !$result) {
+    /*not a member, lets add member!*/
+    performance_event_db($order->uid,performance_event_compute_timestamp($settings['member_increment']['units'],$settings['member_increment']['unit_name'],$now));
+  }
+  else {
+    // extend a current member 
+    performance_event_db($order->uid,performance_event_compute_timestamp($settings['member_increment']['units'],$settings['member_increment']['unit_name'],$result->end_date));
+  }
+  return;
+}
+
+/**
+ *Performance_Event_Computer_Timestamp
+ *
+ *builds appropriate time stamp, checks for overflow
+ **/
+function performance_event_compute_timestamp($unit, $unit_name, $now){
+   /*max drupal date */
+  $max = 99999999999;
+  $newdate = 0;
+  /*check for valid entry */
+  if ( is_int($unit) &&  (($unit != '')  && ($unit_name != '')) && (isset($unit) && isset($unit_name))) {
+    switch($unit_name){
+      case 'day':
+        $newdate (3600 * unit) + $now;
+        break;
+      case 'week':
+        $newdate = (25200 * unit) + $now;
+        break;
+      case 'year':
+        $newdate = (31536000 * unit) + $now;
+        break;
+      default:
+        $newdate = 99999999999; /*forever unix time stamp, will break, someday*/
+    }
+  }
+  else {
+    watchdog('performance_meet','Non CA Type in Meet Greet Not Set, Auto Year Upgrade',$unit,'WATCHDOG_ERROR');
+    $newdate = $now + 31536000;
+  }
+
+  /*check for max drupal date conditions, if found sent to eternity*/
+  if ($newdate > $max) {
+    $newdate = $max;
+  }
+  return $newdate;
+}
+
+/**
+ * Performance_Event_db
+ * Simple DB Query for Performance_Event_Membership_Increment
+ * */
+function performance_event_db($uid, $newdate){
+  $sql = "select id from {meet_greet} where uid = %d order by end_date desc limit 1";
+  $result = db_fetch_object(db_query($sql, $uid));
+  if (!$result) {
+    $sql = "INSERT INTO {meet_greet} (uid, start_date, end_date) VALUES ( %d, %d, %d)";
+    $success = db_query($sql, $uid, time(), $newdate);
+  }
+  else {
+    $sql = "UPDATE {meet_greet} set end_date = %d where uid = %d";
+    $success = db_query($sql, $newdate, $uid);
+  }
+}
+
+/**
+ *Implementation of Hook_Form() Api
+ *
+ *Displays the options for CA
+ **/
+function performance_event_membership_increment_form($form_state, $settings = array()) {  
+  if(!isset($settings['member_increment']['units'])){
+    $settings['units'] = 0;
+    $settings['unit_name'] = 'day';
+  }
+  $form = array();
+  $form['member_increment'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Membership Increment Settings:'),
+    '#weight' => -41,
+    '#collapsible' => TRUE,
+    '#collapsed' => FALSE,
+  );
+  $form['member_increment']['units'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Count of Time'),
+    '#default_value' => $settings['member_increment']['units'],
+    '#maxlength' => 11,
+    '#size' => 11,
+    '#description' => t('Numbers units for the desired date span.'),
+    '#weight' => -40,
+    '#required' => TRUE,
+  );
+  $form['member_increment']['unit_name'] = array(
+    '#type' => 'radios',
+    '#title' => t('Select the appropriate unit span.'),
+    '#default_value' => $settings['member_increment']['unit_name'],
+    '#weight' => -20,
+    '#required' => TRUE,
+    '#options' => array(
+      'day' => ('Days'),
+      'week' => ('Weeks'),
+      'year' => ('Years'),
+      'forever' => ('Forever'),
+      
+    )
+  );
+
+  return $form;
+}
+
+function performance_event_membership_increment_form_validate($form_state,&$settings = array()) {
+   if ( empty($settings['member_increment']['#units'])) {
+     @form_error(&$form['member_increment']['units'], t('This field is required.'));
+     return false;
+   }
+   else if (!is_int($settings['#units'])) {
+      @form_error(&$form['member_increment']['units'], t('This field can only be numbers.'));
+      return false;
+   }
+   if (empty($settings['member_increment']['#unit_name'])){
+     @form_error($element, t('This field is required.'));
+      return false;
+   }
+   return true;
+}
+
+/**
+ * Implementation of hook_field_formatter_info().
+ */
+function performance_event_field_formatter_info() {
+  return array(
+    'meet_greet' => array(
+      'label' => t('Meet & Greet'),
+      'field types' => array('nodereference'),
+      'multiple values' => CONTENT_HANDLE_CORE,
+    ),
+    'adv_ticket_link' => array(
+      'label' => t('Advanced ticket link'),
+      'field types' => array('link'),
+      'multiple values' => CONTENT_HANDLE_CORE,
+    ),
+    'std_ticket_link' => array(
+      'label' => t('Standard ticket link'),
+      'field types' => array('link'),
+      'multiple values' => CONTENT_HANDLE_CORE,
+    ),
+    'node_adv_ticket_link' => array(
+      'label' => t('Node Advanced ticket link'),
+      'field types' => array('link'),
+      'multiple values' => CONTENT_HANDLE_CORE,
+    ),
+    'node_std_ticket_link' => array(
+      'label' => t('Node Standard ticket link'),
+      'field types' => array('link'),
+      'multiple values' => CONTENT_HANDLE_CORE,
+    ),
+  );
+
+}
+ /**
+ * function theme_performance_event_meet_greet_request_status() returns valid html based
+ * on the meet and greet status
+ */
+function theme_performance_event_meet_greet_request_status($status = NULL) {
+ switch ($status) {
+   case 0:
+     return '<span class="denied">'.t('Denied').'</span>';
+   case 1:
+     return '<span class="submitted">'.t('Submitted').'</span>';
+   case 2:
+     return '<span class="approved">'.t('Approved').'</span>';
+   }
+ }
+/**
+ * Theme function for the meet and greet nodereference field formatter.
+ */
+function theme_performance_event_formatter_meet_greet($element) {
+  if (!empty($element['#item']['nid']) && is_numeric($element['#item']['nid']) && ($node = node_load($element['#item']['nid']))) {
+    $date = strtotime($node->field_meet_greet_date[0]['value']);
+    if ((time() < $date) && ($node->field_meet_greet_status[0]['value'] == 'Open')) {
+      $attending = db_result(db_query("SELECT count(*) FROM {meet_greet_request} WHERE nid = %d AND status = 2"));
+      if ($attending < $node->field_available[0]['value']) {
+        return l(t('Request Meet & Greet'), 'meet_greet/request/'.$node->nid, array('attributes' => array('class' => 'meet-greet-apply')));
+      }
+    }
+    else {
+      return '<span class="meet-greet-closed">'.t('Meet & Greet Closed').'</span>';
+    }
+    return '<span class="meet-greet-full">'.t('Meet & Greet Full').'</span>';
+  }
+  return NULL;
+}
+
+/**
+ * Theme function for the advanced ticket sales link
+ */
+function theme_performance_event_formatter_adv_ticket_link($element) {
+  $timezone_offset = date("O") / 100 * 60 * 60;
+
+  // strtotime result is actually where the offset occurs.  Easier to add here though.
+  $now = time() - $timezone_offset;
+
+  if (!empty($element['#node']->node_data_field_presale_end_field_presale_end_value) && strtotime($element['#node']->node_data_field_presale_end_field_presale_end_value) > $now) {
+    if (strtotime($element['#node']->node_data_field_presale_end_field_presale_start_value) < $now) {
+      return l('Presale Tickets', $element['#item']['display_url'], array('absolute' => TRUE, 'attributes' => array('class' => 'adv-ticket-available')));
+    }
+    else {
+      return '<span class="adv-ticket-soon">'.t('Presale Tickets Soon').'</span>';
+    }
+  }
+  return NULL;
+}
+
+/**
+ * Theme function for the standard ticket sales link
+ */
+function theme_performance_event_formatter_std_ticket_link($element) {
+
+  $timezone_offset = date("O") / 100 * 60 * 60;
+  
+  // strtotime result is actually where the offset occurs.  Easier to add here though.
+  $now = time() - $timezone_offset;
+
+  if (!empty($element['#node']->node_data_field_event_date_field_event_date_value) && strtotime($element['#node']->node_data_field_event_date_field_event_date_value) > $now) {
+    if (strtotime($element['#node']->node_data_field_presale_end_field_ticket_start_value) < $now) {
+      if (!empty($element['#item']['display_url'])) {
+        return l('Purchase Tickets', $element['#item']['display_url'], array('absolute' => TRUE, 'attributes' => array('class' => 'std-ticket-available')));
+      }
+      else {
+        // return '<span class="adv-ticket-sold-out">'.t('Tickets Coming Soon').'</span>';
+      }
+    }
+    elseif (strtotime($element['#node']->node_data_field_event_field_presale_end_value['value']) < $now) {
+      // return '<span class="adv-ticket-soon">'.t('Tickets Coming Soon').'</span>';
+    }
+  }
+  return NULL;
+}
+
+/**  
+*  These node formatters are needed because the node object data structure is different when viewing a node,
+*  versus using views.
+**/
+
+/**
+ * Theme function for the advanced ticket sales link
+ */
+function theme_performance_event_formatter_node_adv_ticket_link($element) {
+
+  $timezone_offset = date("O") / 100 * 60 * 60;
+
+  // strtotime result is actually where the offset occurs.  Easier to add here though.
+  $now = time() - $timezone_offset;
+
+  if (!empty($element['#node']->field_presale_end[0]['value']) && strtotime($element['#node']->field_presale_end[0]['value']) > $now) {
+    if (strtotime($element['#node']->field_presale_start[0]['value']) < $now) {
+      return l('Presale Tickets', $element['#item']['display_url'], array('absolute' => TRUE, 'attributes' => array('class' => 'adv-ticket-available')));
+    }
+    else {
+      return '<span class="adv-ticket-soon">'.t('Presale Tickets Soon').'</span>';
+    }
+  }
+  return NULL;
+}
+
+/**
+ * Theme function for the standard ticket sales link
+ */
+function theme_performance_event_formatter_node_std_ticket_link($element) {
+  
+  $timezone_offset = date("O") / 100 * 60 * 60;
+
+  // strtotime result is actually where the offset occurs.  Easier to add here though.
+  $now = time() - $timezone_offset;
+
+  if (!empty($element['#node']->field_event_date[0]['value']) && strtotime($element['#node']->field_event_date[0]['value']) > $now) {
+    if (strtotime($element['#node']->field_ticket_start[0]['value']) < $now) {
+      if (!empty($element['#item']['display_url'])) {
+        return l('Purchase Tickets', $element['#item']['display_url'], array('absolute' => TRUE, 'attributes' => array('class' => 'std-ticket-available')));
+      }
+      else {
+        // return '<span class="adv-ticket-sold-out">'.t('Tickets Coming Soon').'</span>';
+      }
+    }
+    elseif (strtotime($element['#node']->field_presale_end[0]['value']) < $now) {
+      // return '<span class="adv-ticket-soon">'.t('Tickets Coming Soon').'</span>';
+    }
+  }
+  return NULL;
+}
+
+
+function performance_event_user_profile_node($uid){
+  $profile_nid = db_result(db_query("SELECT nid FROM {node} WHERE type='uprofile' AND uid=%d", $uid));
+  return node_load($profile_nid);
+}

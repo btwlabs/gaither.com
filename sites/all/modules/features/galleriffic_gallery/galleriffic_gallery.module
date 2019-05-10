@@ -1,0 +1,3 @@
+<?php
+
+include_once('galleriffic_gallery.features.inc');

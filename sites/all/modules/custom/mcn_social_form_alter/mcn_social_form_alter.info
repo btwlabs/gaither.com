@@ -1,0 +1,9 @@
+name = MCN Social Form Alter
+description = Standard Hook Form Alters for CCK Forms on Social Sites
+core = 6.x
+; Information added by fserver
+core = "6.x"
+datestamp = ""
+project = "mcn_social_form_alter"
+project status url = "http://features.devmcn.com/fserver"
+version = "6.x-2.0"

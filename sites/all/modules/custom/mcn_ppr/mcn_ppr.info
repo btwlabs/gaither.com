@@ -1,0 +1,11 @@
+name = Purchased Products Report
+description = Generate CSV report of product purchases
+package = MCN
+core = 6.x
+
+; Information added by fserver
+core = "6.x"
+datestamp = "1291152546"
+project = "mcn_ppr"
+project status url = "http://features.devmcn.com/fserver"
+version = "6.x-1.0"

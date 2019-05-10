@@ -1,0 +1,13 @@
+<?php
+
+/**
+ * Implentation of the hook_install().
+ */
+ function uc_views_attribute_install() {
+ }
+
+/**
+ * Implentation of the hook_uninstall().
+ */
+ function uc_views_attribute_uninstall() {
+ }

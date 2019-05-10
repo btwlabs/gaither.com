@@ -1,0 +1,134 @@
+<?php
+// $Id: customsite.module
+
+/**
+* @file
+*  USPS Zones:
+*
+*  Note: This module is one large hack of a module.
+*  This was written after the uc_quotes and uc_usps was found not to be easily updated
+*  Further this module will be included with the new ubercart 3, therefore this is
+*  mainly unsuported
+*
+*
+*
+*  If Zone is error,ZONE = 0 on DB level
+*/
+/**
+ *Implementation of hook_order
+ **/
+function uc_usps_zones_order($op, &$arg1, $arg2) {
+  switch ($op) {
+    case 'save':
+      /*get shipping zone*/
+      $zone = getShippingZone($arg1->products[0]->shipping_address->postal_code,$arg1->billing_postal_code);
+      
+       /*save it not done with elegance, but the entire usps isn't either... needs rewrite :)*/
+      $sql = "INSERT INTO {uc_usps_zones} (order_id, zone) VALUES (%d, %d)";
+      
+      if(@!db_query($sql,$arg1->order_id, $zone)) {
+        $sql = "UPDATE {uc_usps_zones} SET zone = %d where order_id = %d)";
+        @db_query($sql,$zone, $arg1->order_id);
+       }
+       break;
+  }
+}
+/**
+ *FUNCITON GETSHIPPINGZONE()
+ *Gets and returns USPS Shipping Zone with fake package
+ **/
+function getShippingZone($from,$to){
+  /*xml request hard coded expect for zips since nothing else will matter :) */
+  $xml = '<RateV3Request USERID="'. variable_get('uc_usps_user_id', '') .'">'.
+         '<Package ID="1ST">'.
+         '<Service>FIRST CLASS</Service>'.
+         '<FirstClassMailType>LETTER</FirstClassMailType>'.
+         '<ZipOrigination>'.$from.'</ZipOrigination>'.
+         '<ZipDestination>'.$to.'</ZipDestination>'.
+         '<Pounds>0</Pounds>'.
+         '<Ounces>3</Ounces>'.
+         '<Size>REGULAR</Size>'.
+         '<Machinable>true</Machinable>'.
+         '</Package></RateV3Request> ';
+  $usps_server = 'production.shippingapis.com';
+  $api_dll = 'ShippingAPI.dll';
+  $connection_url = 'http://'. $usps_server .'/'. $api_dll;
+  
+  /*send request */
+  $result = @drupal_http_request($connection_url, array(), 'POST', 'API=RateV3&XML='.urlencode($xml));
+   /*get and return zone*/
+  $response = new SimpleXMLElement($result->data);
+  
+  return $response->Package->Zone;
+
+}
+/**
+ *Implementation of hook_views_data()
+ *
+ **/
+function uc_usps_zones_views_data() {
+  $data = array();
+  
+  $data['uc_usps_zones'] = array(
+    'table' => array(
+      'group' => 'Ubercart order',
+      'title' => 'USPS Zones',
+      'join' => array(
+        'uc_orders' => array(
+          'left_field' => 'order_id',
+          'field' => 'order_id',
+        ),
+      ),
+    ),
+/*    'order_id' => array(
+      'title' => t('order_id'),
+      'help' => t('The id of the order'),
+    ), */
+   'zone' => array(
+      'title' => t('Zone ID'),
+      'help' => t('The USPS Zone'),
+    ),
+    'zone' => array(
+      'title' => t('USPS specific shipping zone'),
+      'help' => t('The USPS designated shipping zone.'),
+      'field' => array(
+        'handler' => 'views_handler_field',
+        'click sortable' => TRUE,
+      ),
+      'filter' => array(
+        'handler' => 'views_handler_usps_zones'
+      ),
+      'sort' => array(
+        'handler' => 'views_handler_sort',
+      ),
+    ),
+  );
+  return $data;
+}
+
+/**
+ * Implementation of hook_views_api()
+ *
+ * */
+function uc_usps_zones_views_api() {
+  return array(
+    'api' => '2.0',
+    'path' => drupal_get_path('module', 'uc_usps_zones'),
+  );
+}
+
+/**
+ * Implementation of hook_views_handlers().
+ */
+function uc_usps_zones_views_handlers() {
+  return array(
+    'info' => array(
+      'path' => drupal_get_path('module', 'uc_usps_zones') . '/views',
+    ),
+    'handlers' => array(
+      'views_handler_usps_zones' => array('parent' => 'views_handler_filter_in_operator',),
+
+
+    ),
+  );
+}

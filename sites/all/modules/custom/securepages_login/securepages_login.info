@@ -1,0 +1,10 @@
+name = Secure Pages Login
+description = "Secure the login form."
+dependencies[] = securepages
+core = 6.x
+; Information added by fserver
+core = "6.x"
+datestamp = ""
+project = "securepages_login"
+project status url = "http://features.devmcn.com/fserver"
+version = "6.x-1.0"

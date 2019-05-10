@@ -1,0 +1,3 @@
+<?php
+
+include_once('faq_accordion.features.inc');

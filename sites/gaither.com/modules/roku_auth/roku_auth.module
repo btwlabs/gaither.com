@@ -1,0 +1,154 @@
+<?php
+// $Id$
+
+/**
+ * Implementation of hook_perm
+ */
+function roku_auth_perm() {
+  return array('get roku linking codes', 'validate roku linking codes', 'admin roku settings');
+} // hook_perm
+
+/**
+ * Implementation of hook_menu
+ */
+function roku_auth_menu() {
+  return array(
+    'roku.xml' => array( 
+      'title' => 'Roku Authentication',
+      'description' => 'Roku authentication functions',
+      'page callback' => 'roku_auth_xml',
+      'file' => 'roku_auth.xml.inc',
+      'access arguments' => array('get roku linking codes'),
+      'type' => MENU_CALLBACK,
+    ),
+    'user/roku' => array(
+      'title' => 'Verify Your Roku Linking Code',
+      'description' => 'Form to enter Roku linking codes',
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('roku_auth_linking_form'),
+      'file' => 'roku_auth.linking_form.inc',
+      'access arguments' => array('validate roku linking codes'),
+      'type' => MENU_NORMAL_ITEM,
+    ),
+    'admin/roku' => array(
+      'title' => 'Admin Roku Settings',
+      'description' => 'Administer Roku settings',
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('roku_auth_admin_form'),
+      'file' => 'roku_auth.admin_form.inc',
+      'access arguments' => array('admin roku settings'),
+      'type' => MENU_NORMAL_ITEM,
+    ),
+  );
+} // hook_menu
+
+/**
+ * Implementation of hook_cron
+ */
+function roku_auth_cron() {
+  // delete expired linking codes unless they have an entry in the roku_auth_validations table too? 
+  $query = 'SELECT lc.linking_code FROM {roku_auth_linking_code} lc '
+    . 'LEFT JOIN {roku_auth_validation} v ON v.linking_code LIKE lc.linking_code '
+    . 'WHERE lc.expiration < %d AND v.device_token IS NULL';
+  $q_res = db_query($query, time());
+  $del_query = 'DELETE FROM {roku_auth_linking_code} WHERE linking_code LIKE "%s"';
+  while ($linking_code = db_result($q_res)) {
+    db_query($del_query, $linking_code);
+    $old_codes[] = $linking_code;
+  }
+  if (!empty($old_codes)) {
+    watchdog('roku_auth', '@count expired linking codes deleted', array('@count' => count($old_codes)));
+  }
+} // hook_cron
+
+/**
+ * Implementation of hook_user
+ */
+function roku_auth_user($op, &$edit, &$account, $category) {
+  if ($op == 'delete') {
+    roku_auth_delete_validations_by_uid($account->uid);
+  } // $op delete
+} // hook_user
+
+/**
+ * Delete a user's linking_codes and validations
+ *
+ * @param $uid int uid of the user
+ * @return bool was this function successful?
+ */
+function roku_auth_delete_validations_by_uid($uid) {
+  if (!$uid) { return FALSE;}
+  $get_query = 'SELECT linking_code FROM {roku_auth_validation} WHERE uid=%d';
+  $del_validation_query = 'DELETE FROM {roku_auth_validation} WHERE uid=%d';
+  $del_linking_query = 'DELETE FROM {roku_auth_linking_code} WHERE linking_code LIKE "%s"';
+  $linking_code = db_result(db_query($get_query, $uid));
+  db_query($del_validation_query, $uid);
+  if ($linking_code) {
+    db_query($del_linking_query, $linking_code);
+  }
+  return TRUE;
+} // roku_auth_delete_validations_by_uid
+
+/**
+ * Delete a specific device validation by device token
+ *
+ * @param $device_token string - a device_token field from the roku_auth_validation_table
+ * @return bool was this function successful?
+ */
+function roku_auth_delete_validations_by_device($device_token){
+  if (!$device_token) { return FALSE; }
+  $get_query = 'SELECT linking_code FROM {roku_auth_validation} WHERE device_token LIKE "%s"';
+  $del_validation_query = 'DELETE FROM {roku_auth_validation} WHERE device_token LIKE "%s"';
+  $del_linking_query = 'DELETE FROM {roku_auth_linking_code} WHERE linking_code LIKE "%s"';
+  $linking_code = db_result(db_query($get_query, $device_token));
+  db_query($del_validation_query, $device_token);
+  if ($linking_code) {
+    db_query($del_linking_query, $linking_code);
+  }
+  return TRUE;
+} // roku_auth_delete_validations_by_device
+
+/**
+ * Delete all validations associated with a user
+ *
+ * @param $uid int - a user uid
+ */
+function roku_auth_get_devices_by_uid($uid) {
+  $devices = array();
+  $query = 'SELECT device_token, device_name, last_access, linking_code FROM {roku_auth_validation} WHERE uid=%d';
+  $q_res = db_query($query, $uid);
+  while ($q_row = db_fetch_array($q_res)) {
+    $devices[$q_row['device_token']] = array(
+      'device_name' => $q_row['device_name'],
+      'last_access' => $q_row['last_access'],
+    );
+  } // while fetching db results
+  return $devices;
+} // roku_auth_get_devices_by_uid
+
+/**
+ * Generate a new device_token
+ *
+ * @param $linking_code string - optional linking code used to generate token
+ * @return string - a device token valid to insert into the roku_auth_validation_table table
+ */
+function roku_auth_generate_device_token($linking_code = 0) {
+  $linking_code = preg_replace('/[^a-z0-9]/i', '', $linking_code);
+  if (!$linking_code) {
+    $linking_code = sprintf('%08x', rand(0,999999999));
+  }
+  return sprintf('%x', time()) . $linking_code;
+} // roku_auth_generate_device_token
+
+/**
+ * Generate a new linking code
+ *
+ * @return string - a linking code3
+ */
+function roku_auth_generate_linking_code() {
+  $i = variable_get('roku_auth_incrementor', 0);
+  $code = sprintf('%x', time()) . sprintf('%x', $i);
+  $i = ($i + 1) % 16;
+  variable_set('roku_auth_incrementor', $i);
+  return $code;
+} // roku_auth_generate_linking_code

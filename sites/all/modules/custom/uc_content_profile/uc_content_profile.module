@@ -1,0 +1,275 @@
+<?php
+
+// $Id$
+
+/**
+ * @file
+ * This file contains an implementation of a checkout pane to allow 
+ * new Ubercart customers to personalize a profile (or profiles).
+ *
+ * The administrator chooses the content types and fields to use 
+ * for the profile. Each content type may be enabled/disabled, as 
+ * well as each field.
+ */
+
+require_once('uc_content_profile.ca.inc');
+
+/**
+ * Implementation of hook_checkout_pane().
+ */
+function uc_content_profile_checkout_pane() {
+  
+  $panes[] = array(
+    'id' => 'content-profile',
+    'callback' => 'uc_checkout_pane_content_profile',
+    'title' => t('Profile fields'),
+    'desc' => t("Allow a customer to fill out fields in their profile."),
+    'weight' => 6,
+  );
+  
+  return $panes;
+}
+
+/**
+ * Handle the content profile checkout pane.
+ */
+function uc_checkout_pane_content_profile($op, &$arg1, $arg2) {
+  global $user;
+
+  switch ($op) {
+    case 'view':
+      if (!$user->uid) {
+        $contents = _uc_content_profile_get_fields(variable_get('uc_content_profile_types', drupal_map_assoc(content_profile_get_types('names'))), TRUE);
+        
+        return array(
+          'contents' => $contents,
+          'description' => t('This information will comprise your user profile.'),
+        );
+      }
+      
+    case 'process':
+      if (!$user->uid) {
+        $arg1->data['profile_info'] = _uc_content_profile_node_data($arg2);
+      }
+      
+    case 'review':
+      break;
+
+    case 'settings':
+      $form['uc_content_profile_types'] = array(
+        '#type' => 'checkboxes',
+        '#options' => content_profile_get_types('names'),
+        '#description' => t('Select which content profile types will be available to first-time customers.'),
+        '#default_value' => variable_get('uc_content_profile_types', drupal_map_assoc(content_profile_get_types('names'))),
+      );
+      
+      // Only show these forms if there's any reason to.
+      $types = array();
+      foreach (variable_get('uc_content_profile_types', drupal_map_assoc(content_profile_get_types('names'))) as $type => $value) {
+        if (!$value) {
+          continue;
+        }
+        $type = strtolower($type);
+        $options = _uc_content_profile_get_field_options($type);
+        if (count($options)) {
+          $types['uc_content_profile_fields_'. $type] = array(
+            '#type' => 'checkboxes',
+            '#title' => t('%name content profile fields', array('%name' => ucfirst($type))),
+            '#options' => $options,
+            '#default_value' => variable_get('uc_content_profile_fields_'. $type, array()),
+          );
+        }
+      }
+      if (count($types)) {
+        $form['uc_content_profile_fields'] = array(
+          '#type' => 'fieldset',
+          '#title' => t('Content profile fields'),
+          '#description' => t('Select which profile fields will be available to first-time customers. Any missing options are probably required by the content node, so you should remove that requirement to allow hiding.'),
+        );
+        $form['uc_content_profile_fields'] = array_merge($form['uc_content_profile_fields'], $types);
+      }
+      return $form;
+  }
+}
+
+// Turn each bottom-level value into an array element keyed with 'value'.
+function _uc_content_profile_add_value($form) {
+  $result = array();
+  if (is_array($form)) {
+    foreach ($form as $key => $value) {
+      $result[$key] = _uc_content_profile_add_value($value);
+    }
+  }
+  else {
+    $result = array('value' => $form);
+  }
+  return $result;
+}
+
+// Structure data for node_save().
+function _uc_content_profile_node_data($form) {
+  $result = array();
+  foreach ($form as $type => $variables) {
+    foreach ($variables as $name => $value) {
+      // CCK wants them as arrays.
+      $result[$type][$name] = (array) $value;
+    }
+  }
+  return _uc_content_profile_add_value($result);
+}
+
+// Helper. Handles the node saving.
+function _uc_content_profile_submit_form($values, $account) {
+  if (!$account->uid) {
+    return;
+  }
+  
+  $form_state = array();
+  module_load_include('inc', 'node', 'node.pages');
+  foreach ($values as $type => $fields) {
+    // No duplicates.
+    if (db_result(db_query("SELECT nid FROM {node} WHERE uid = %d and type = '%s'", $account->uid, $type))) {
+      drupal_set_message(t("%user already has a profile of the type %type.", array('%user' => $account->name, '%type' => $type)), 'warning');
+      continue;
+    }
+    
+    $node = array(
+      'type' => $type,
+      'status' => 1,
+      'title' => $account->name,
+      'uid' => $account->uid,
+    );
+
+    // CCK fields
+    foreach ($fields as $key => $field) {
+      $node[$key] = $field;
+    }
+    
+    $node = (object) $node;
+    node_save($node);
+  }
+}
+
+// 
+function form_has_control($form, $control, $value, $op = '===') {
+  $result = array();
+  $children = element_children($form);
+  if ($children) {
+    foreach ($children as $key) {
+      if (TRUE === form_has_control($form[$key], $control, $value, $op)) {
+        return TRUE;
+      }
+    }
+  }
+  $control = $form[$control];
+  if (eval("return(\$control $op \$value);")) {
+    return TRUE;
+  }
+  return FALSE;
+}
+
+// Build options for the pane settings form.
+function _uc_content_profile_get_field_options($type) {
+  $fields = _uc_content_profile_get_fields(array($type => $type), FALSE);
+  
+  $options = array();
+  foreach ($fields[$type] as $key => $value) {
+    $bottom = $value;
+    while (element_children($bottom)) {
+      $bottom = $bottom[0];
+    }
+    
+    // Don't allow hiding of required fields.
+    if (!form_has_control($value, '#required', TRUE, '==')) {
+      $options[$key] = $bottom['#title'] .': '. $key;
+    }
+  }
+  return $options;
+}
+
+// Build lists of fields for pane settings and checkout.
+function _uc_content_profile_get_fields($types, $hidden) {
+  require_once drupal_get_path('module', 'node') .'/node.pages.inc';
+  
+  $fields = $form = array();
+  foreach ($types as $type => $value) {
+    if (!$value) {
+      continue;
+    }
+    $form_state = array();
+    
+    // Initialize new node:
+    $node = new stdClass();
+    $node->type = $type;
+
+    // Get the node form
+    $node_form = drupal_retrieve_form(strtolower($type) .'_node_form', $form_state, $node);
+    drupal_prepare_form($type .'_node_form', $node_form, $form_state);
+    drupal_process_form($type .'_node_form', $node_form, $form_state);
+
+    // Add the node form's fields.
+    $fields[$type] = array();
+    
+    // Get the fields...
+    $field_array = element_children($node_form['#field_info']);
+    foreach ($field_array as $field) {
+      $fields[$type] = array_merge($fields[$type], _uc_content_profile_recur_fields($node_form, $field));
+      
+      // Hide everything, unless it's required.
+      if ($hidden) {
+        if (!form_has_control($fields[$type][$field], '#required', TRUE, '==')) {
+          $fields[$type][$field]['#access'] = FALSE;
+        }
+      }
+    }
+    
+    // Selectively enable based on pane settings.
+    if ($hidden) {
+      foreach (variable_get('uc_content_profile_fields_'. $type, array()) as $field) {
+        $fields[$type][$field]['#access'] = TRUE;
+      }
+    }
+  }
+  
+  return $fields;
+}
+
+function form_patch_names(&$field, $name) {
+  $children = element_children($field);
+  if (count($children)) {
+    foreach ($children as $key) {
+      _uc_content_profile_patch_names($field[$key], $name ."[$key]");
+    }
+  }
+  $field['#name'] = $name;
+}
+
+// Patch up fields recursively.
+function _uc_content_profile_recur_fields($form, $field) {
+  $result = array();
+  
+  // Bottom level; unset a bunch of crap to keep everything working.
+  if(isset($form['group_personal_information_profi'][$field]['value'])) {
+    dpm('group non-recur');
+    unset($form['group_personal_information_profi'][$field]['value']['#parents']);
+    unset($form['group_personal_information_profi'][$field]['value']['#array_parents']);
+    unset($form['group_personal_information_profi'][$field]['value']['#name']);
+    unset($form['group_personal_information_profi'][$field]['value']['#value']);
+    $result = array($field => $form['group_personal_information_profi'][$field]['value']);
+  }
+  elseif (isset($form[$field]['value'])) {
+    unset($form[$field]['value']['#parents']);
+    unset($form[$field]['value']['#array_parents']);
+    unset($form[$field]['value']['#name']);
+    unset($form[$field]['value']['#value']);
+    $result = array($field => $form[$field]['value']);
+  }
+  
+  // Recur.
+  else {
+    foreach (element_children($form[$field]) as $key) {
+      $result[$field] = _uc_content_profile_recur_fields($form[$field], $key);
+    }
+  }
+  return $result;
+}

@@ -1,0 +1,5 @@
+; $Id$
+name=Roku Authentication
+description=Authenticate a Roku box per their API specifications. For McNinteractive. By vomitHatSteve
+core=6.x
+package=Roku

@@ -1,0 +1,35 @@
+<?php
+
+/**
+ * @file
+ * Forces the login form to submit to the SSL url.
+ * Ported directly from securepages_prevent_hijack's securepages_prevent_hijack_form_alter function
+ */
+
+
+/**
+ * Implementation of hook_form_alter().
+ */
+function securepages_login_form_alter(&$form, &$form_state, $form_id) {
+  if (!variable_get('securepages_enable', 0)) {
+    return;
+  }
+  // Refresh the cookie whenever the settings page is submitted.
+  if ($form['#id'] == 'securepages-settings') {
+    $form['#submit'][] = '_securepages_prevent_hijack_cookie';
+  }
+
+  // Secure the login form, so that we always have a secure connection to transmit the
+  // initial cookie.  Also, protect the password in transit.
+  if ($form['#id'] == 'user-login-form' || $form['#id'] == 'user-login') {
+    $url = parse_url($form['#action']);
+
+    $base_path = base_path();
+    $path = (!strncmp($url['path'], $base_path, drupal_strlen($base_path)) ? drupal_substr($url['path'], drupal_strlen($base_path)) : $url['path']);
+    $options = array('secure' => TRUE);
+    if (isset($url['query'])) {
+      $options['query'] = $url['query'];
+    }
+    $form['#action'] = securepages_url($path, $options);
+  }
+}

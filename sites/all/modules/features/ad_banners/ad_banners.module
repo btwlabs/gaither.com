@@ -1,0 +1,3 @@
+<?php
+
+include_once('ad_banners.features.inc');

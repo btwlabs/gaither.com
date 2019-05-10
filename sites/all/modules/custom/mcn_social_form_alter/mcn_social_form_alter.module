@@ -1,0 +1,24 @@
+<?php
+// $Id: formblock.module,v 1.4.2.2 2008/12/10 02:42:39 mikeyp Exp $
+
+/**
+ * Implementation of hook_form_alter().
+ */
+function mcn_social_form_alter_form_alter(&$form, $form_state, $form_id) {
+  switch ($form_id) {
+      // This is our form ID.
+      case 'blog_node_form':
+            $form['buttons']['submit']['#value'] = t('+Share');
+      break;
+      case 'photo_node_form':
+            $form['buttons']['submit']['#value'] = t('+Share');
+      break;
+      case 'video_node_form':
+            $form['buttons']['submit']['#value'] = t('+Share');
+      break;
+      case 'status_node_form':
+            $form['field_status_body']['0']['#title'] = t('Update Status or click on an icon to share content.....');
+            $form['buttons']['submit']['#value'] = t('+Share');
+        break;
+  }
+}

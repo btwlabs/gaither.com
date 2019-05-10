@@ -1,0 +1,12 @@
+; $Id$
+name =  USPS Zones
+description = Encodes the USPS Zones for Shipping
+core = 6.x
+dependancies[] = uc_usps
+package = "MCN Modules"
+; Information added by fserver
+core = "6.x"
+datestamp = "1291225441"
+project = "uc_usps_zones"
+project status url = "http://features.devmcn.com/fserver"
+version = "6.x-1.0"

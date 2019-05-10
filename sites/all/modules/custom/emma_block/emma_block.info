@@ -1,0 +1,13 @@
+; $Id: emma_block.info,v 1.1 2010/06/25 09:58:12 elusivemind Exp $
+
+name = Emma Block
+description = Creation of a block for Emma newsletter registrations
+package = Emma
+core = 6.x
+
+; Information added by drupal.org packaging script on 2010-06-25
+version = "6.x-1.0"
+core = "6.x"
+project = "emma_block"
+datestamp = "1277460320"
+

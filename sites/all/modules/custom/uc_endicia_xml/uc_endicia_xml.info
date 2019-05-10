@@ -1,0 +1,15 @@
+; $Id$
+name = Ubercart Endicia
+description = "Handles the Ubercart orders to USPS Endicia export process."
+core = 6.x
+package = "MCN Modules"
+
+dependencies[] = uc_views_bulk_operations
+dependencies[] = uc_usps
+
+; Information added by fserver
+core = "6.x"
+datestamp = "1305903790"
+project = "uc_endicia_xml"
+project status url = "http://features.devmcn.com/fserver"
+version = "6.x-1.1"

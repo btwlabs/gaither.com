@@ -1,0 +1,9 @@
+; $Id$
+
+name = "Emma API"
+description = "Provides an API to integrate with Emma mailing lists"
+core = 6.x
+package = Emma
+version = 6.x-1.0
+project status url = "http://features.devmcn.com/fserver"
+

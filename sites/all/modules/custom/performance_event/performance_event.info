@@ -1,0 +1,29 @@
+; $Id$
+name = Performance Event
+description = "Provides Performance Event and Meet and Greet funtionality."
+core = 6.x
+package = "MCN Modules"
+version = 6.x-1.3
+project status url = "http://features.devmcn.com/fserver"
+
+dependencies[] = views
+dependencies[] = content
+dependencies[] = content_copy
+dependencies[] = date
+dependencies[] = location
+dependencies[] = fieldgroup
+dependencies[] = nodereference
+dependencies[] = text
+dependencies[] = link
+dependencies[] = number
+dependencies[] = optionwidgets
+dependencies[] = date_popup
+dependencies[] = userreference
+dependencies[] = content_profile_registration
+
+; Information added by fserver
+core = "6.x"
+datestamp = ""
+project = "performance_event"
+project status url = "http://features.devmcn.com/fserver"
+version = "6.x-1.3"

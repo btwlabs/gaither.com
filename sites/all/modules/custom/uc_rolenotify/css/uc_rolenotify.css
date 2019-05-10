@@ -1,0 +1,10 @@
+/* $Id$ */
+
+.notification-time .fieldset-content .form-item {
+  float: left;
+  margin-right: .5em;
+}
+
+tr.notification td {
+  vertical-align: top;
+}

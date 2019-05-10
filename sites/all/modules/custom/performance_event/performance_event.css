@@ -1,0 +1,15 @@
+form#performance-event-meet-greet-manage-requests-form #edit-actions-wrapper label {
+  display:none;
+}
+form#performance-event-meet-greet-manage-requests-form #edit-actions-wrapper {
+  float:left;
+  margin-bottom:0;
+}
+form#performance-event-meet-greet-manage-requests-form #edit-actions-wrapper select {
+  width:100px;
+}
+
+form#performance-event-meet-greet-manage-requests-form #edit-submit {
+  float:left;
+  margin:1em;
+}

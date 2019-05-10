@@ -1,0 +1,130 @@
+<?php
+// $Id$
+
+/**
+ * @file
+ * Schema definition and install, uninstall, and update functions for the role
+ *   expiration notifications module.
+ */
+
+
+/**
+ * Implementation of hook_schema().
+ */
+function uc_rolenotify_schema() {
+  $schema = array();
+
+  $schema['uc_rolenotify'] = array(
+    'fields' => array(
+      'rnid' => array(
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'rpid' => array(
+        'description' => t('The {uc_roles_products}.rpid of the associated role assignment product feature.'),
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'time_number' => array(
+        'description' => t('Number of time units used to calculate when to notify the user.'),
+        'type' => 'int',
+        'size' => 'small',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'time_unit' => array(
+        'description' => t('Unit of time used to calculate when to notify the user.'),
+        'type' => 'varchar',
+        'not null' => TRUE,
+        'length' => 255,
+        'default' => '',
+      ),
+      'time_relative' => array(
+        'description' => t('Whether the time for notification should be before (0) or after (1) the expiration occurs.'),
+        'type' => 'int',
+        'size' => 'tiny',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'email' => array(
+        'type' => 'text',
+        'not null' => TRUE,
+        'default' => '',
+        'serialize' => TRUE,
+      ),
+    ),
+    'indexes' => array(
+      'rpid' => array('rpid'),
+    ),
+    'primary key' => array('rnid'),
+  );
+
+  $schema['uc_rolenotify_queue'] = array(
+    'fields' => array(
+      'qid' => array(
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'reid' => array(
+        'description' => t('The {uc_roles_expirations}.reid of the associated role expiration.'),
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'rnid' => array(
+        'description' => t('The {uc_rolenotify}.rnid of the role expiration notification.'),
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'rpid' => array(
+        'description' => t('The {uc_roles_products}.rpid of the associated role assignment product feature.'),
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'notify' => array(
+        'description' => t('The timestamp for when to send the notification.'),
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'notified' => array(
+        'description' => t('Whether the notification notification has already been sent (1) or not (0).'),
+        'type' => 'int',
+        'size' => 'tiny',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+    ),
+    'indexes' => array(
+      'reid' => array('reid'),
+      'rnid' => array('rnid'),
+    ),
+    'primary key' => array('qid'),
+  );
+
+  return $schema;
+}
+
+/**
+ * Implementation of hook_install().
+ */
+function uc_rolenotify_install() {
+  drupal_install_schema('uc_rolenotify');
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function uc_rolenotify_uninstall() {
+  drupal_uninstall_schema('uc_rolenotify');
+}

@@ -1,0 +1,15 @@
+; $Id$
+name = Sage Payments
+description = A gateway used to process payments using Sage Payments only.
+dependencies[] = uc_payment
+dependencies[] = uc_credit
+package = Ubercart - payment
+
+core = 6.x
+
+; Information added by fserver
+core = "6.x"
+datestamp = "1291150935"
+project = "uc_sage_payments"
+project status url = "http://features.devmcn.com/fserver"
+version = "6.x-1.0"

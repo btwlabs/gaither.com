@@ -1,0 +1,287 @@
+<?php
+//$Id$
+/**
+*  @file uc_endicia_xml.module
+*  Module definition for uc_endicia_xml 
+*/
+
+/**
+ * Implementation of hook_node_operations(). (rather, hook_order_operations, which is based off the other)
+ */
+function uc_endicia_xml_order_operations() {
+  return array(
+    'export_endicia_xml' => array(
+    'label' => 'Export to Endicia',
+    'callback' => 'uc_endicia_xml_export_xml',
+    ),
+  );
+}
+
+
+/**
+ * Strips illegal Unicode characters and encodes entities in string
+ *
+ * @param string $input
+ * @return string
+ */
+function uc_endicia_xml_strip_illegal_chars($input) {
+  $output = preg_replace('/[\x{80}-\x{A0}'. // Non-printable ISO-8859-1 + NBSP
+        '\x{01}-\x{1F}'. //Non-printable ASCII characters
+        '\x{AD}'. // Soft-hyphen
+        '\x{2000}-\x{200F}'. // Various space characters
+        '\x{2028}-\x{202F}'. // Bidirectional text overrides
+        '\x{205F}-\x{206F}'. // Various text hinting characters
+        '\x{FEFF}'. // Byte order mark
+        '\x{FF01}-\x{FF60}'. // Full-width latin
+        '\x{FFF9}-\x{FFFD}'. // Replacement characters
+        '\x{0}]/u', // NULL byte
+        '', $input);
+// Provides: Hll Wrld f PHP
+  $output = str_replace('&', '&amp;', $output); //encode ampersand
+  $output = str_replace("'", '&pos;', $output); //encode apostrophe
+  $output = str_replace('<', '&lt;', $output); //encode left-angled bracket
+  $output = str_replace('>', '&rt;', $output); //encode right-angled bracket
+  return $output;
+}
+/**
+ * UC_ENDICIA_XML_IS_DATE
+ *
+ *@params untested input string
+ * Checks for a date, returns a date
+ *@returns a time
+ * */
+function uc_endicia_xml_is_date ($input) {
+  if (strpos($input, 'a:3:{s:5:"month"') !== 0) {
+    return $input; 
+  }
+  else { //serialized date array
+    $date = unserialize($input);
+    return date(DATE_ISO8601, mktime(0, 0, 0, $date['month'], $date['day'], $date['year']));
+  }
+}
+/**
+ * UC_ENDICIA_NORMALIZE_USPS_METHOD()
+ *
+ * @param a raw string
+ * @returns a string that represents the method
+ *
+ *  should be fed from a DB
+**/
+function uc_endicia_normalize_usps_method($raw) {
+  
+     switch ($raw) {
+      case 'U.S.P.S. First-Class Mail';
+      case 'U.S.P.S. First-Class Flat';
+      case 'U.S.P.S. First-Class Postcard Stamped';
+      case 'U.S.P.S. First-Class Parcel';
+           return "FIRST";
+      
+      case 'U.S.P.S. Priority Mail';
+      case 'U.S.P.S. Priority Mail Flat-Rate Envelope';
+      case 'U.S.P.S. Priority Mail Small Flat-Rate Box';
+            return "PRIORITY";
+      
+      case  'U.S.P.S. Parcel Post';
+            return 'PARCELPOST';
+      
+      case 'U.S.P.S. Media Mail';
+            return 'MEDIAMAIL';
+      
+      case 'U.S.P.S. Library';
+            return 'LIBRARYMAIL';
+          
+      case 'U.S.P.S. Bound Printed Matter';
+            return 'BOUNDPRINTEDMATTER';
+      
+      case 'U.S.P.S. Express Mail PO to PO';
+      case 'U.S.P.S. Express Mail PO to Addressee';
+      case 'U.S.P.S. Express Mail Flat-Rate Envelope';
+            return "EXPRESS";
+      
+      case 'First Class Mail International Letter';
+      case 'First Class Mail International Flat';
+      case 'First Class Mail International Package';
+            return 'INTLFIRST';
+
+      case 'Express Mail International (EMS)';
+      case 'Express Mail International (EMS) Flat Rate Envelope';
+            return 'INTLEXPRESS';
+      
+      case 'Priority Mail International';
+      case 'Priority Mail International Flat Rate Envelope';
+            return 'INTLPRIORITY';
+          
+      case 'Global Express Guaranteed';
+            return 'INTGXG';
+    
+      case 'Global Express Guaranteed';
+      case 'Global Express Guaranteed Non-Document Rectangular';
+      case 'Global Express Guaranteed Non-Document Non-Rectangular';
+            return 'INTLGXGNODOC';
+        
+      }
+  return $raw;
+}
+/**
+ * UC_ENDICIA_NORMALIZE_USPS_PKG_TYPE()
+ *
+ * @param a raw string
+ * @returns a string that represents the type
+ *
+ *  should be fed from a DB
+**/
+function uc_edicia_normalize_usps_pkg_type($raw) {
+  switch($raw) {
+    case "U.S.P.S. First-Class Postcard Stamped";
+      return "POSTCARD";
+    
+    case "First Class Mail International Letter";
+    case "U.S.P.S. First-Class Mail";
+      return "ENVELOPE";
+   
+    case "U.S.P.S. First-Class Flat";
+    case "First Class Mail International Flat";
+      return "FLAT";
+   
+    case 'U.S.P.S. First-Class Parcel';
+    case 'U.S.P.S. First-Class Parcel';
+    case "U.S.P.S. Parcel Post";
+    case "First Class Mail International Parcel";
+    case "Global Express Guaranteed Non-Document Rectangular";
+    case 'First Class Mail International Package';
+      return "RECTPARCEL";
+   
+    case "U.S.P.S. Priority Mail Flat-Rate Envelope";
+    case "U.S.P.S. Express Mail Flat-Rate Envelope";
+    case "Priority Mail International Flat Rate Envelope";
+      return "FLATRATEENVELOPE";
+    
+    case "Global Express Guaranteed Non-Document Non-Rectangular";
+      return "NONRECTPARCEL";
+    
+    case "Flat rate box";
+    case "Priority Mail International Flat Rate Box";
+    case "U.S.P.S. Priority Mail";
+    case "U.S.P.S. Priority Mail Flat-Rate Box";
+      return "FLATRATEBOX";
+
+    case "Large flat rate box";
+      return "FLATERATELARGEBOX";
+      
+    case 'U.S.P.S. Priority Mail Small Flat-Rate Box';
+      return 'FLATRATESMALLBOX';
+
+ /**   case "";
+      return "FLATRATESMALLBOX"; **/
+  }
+  return 'NONE';
+}
+
+/**
+ * uc_edicia_shipping_details
+ *
+ * @returns an array of
+ * 'method' => PRIORITYMAIL
+ * 'type => PARCEL
+ * 'carrier'=> usps
+ *
+ * ON ERROR
+ * returns the above array as NULLS
+ * */
+function uc_edicia_shipping_details($order_id = -1) { //negative one used be cause NULL equates to zero sometimes
+  
+  $info = array('carrier' => NULL, 'type' => NULL, 'method' => NULL);
+  $shipping = null;
+  
+  $sql = "select uc_order_quotes.method as carrier ,uc_order_quotes.accessorials, uc_order_line_items.title  as method ".
+  "from uc_order_quotes, uc_order_line_items ".
+  "where uc_order_quotes.order_id = %d ".
+  "AND uc_order_line_items.order_id = %d ".
+  "AND uc_order_line_items.type = 'shipping' LIMIT 1";
+
+  $shipping = db_fetch_object(db_query($sql,$order_id,$order_id));
+  //set carrier USPS,UPS,etc...
+   $info['carrier'] = $shipping->carrier;
+    switch($shipping->carrier) {
+      case "usps":
+      case "usps_intl":
+         $info['method'] = uc_endicia_normalize_usps_method($shipping->method);
+         $info['type'] = uc_edicia_normalize_usps_pkg_type($shipping->method);
+
+         break;
+     
+    }
+
+  return $info; //fail
+}
+/**
+ * UC_ENDICIA_GETCOUNTRYNAME()
+ * @params a numeric country code
+ * @return a string country name
+* looks for a country code, doesn't print out anything for USA. 
+*/
+function uc_endicia_getCountryName($code){
+  if($code != 840) {
+     $sql = " select country_iso_code_3 from uc_countries WHERE country_id = %d LIMIT 1";
+     $result = db_fetch_object(db_query($sql, $code));
+     return       "<ToCountry>".$result->country_iso_code_3."</ToCountry>";
+   }
+   return null; //dont print anything USA or FAIL
+}
+/**
+ * UC_ENDICIA_CALCULATE_PKG_WEIGHT()
+ *
+ * @params an array of products
+ * @return a weight
+ * */
+function uc_endicia_calculate_pkg_weight($products) {
+  $totalweight = 0;
+  foreach($products as $item){
+    $totalweight += $item->weight * $item->qty;  
+  }
+  return $totalweight;
+  
+}
+/**
+ * Returns XML file to download.
+ * @param array $orders
+ */
+function uc_endicia_xml_export_xml($orders) {
+  /*set headers no cache, duplicates for x-browser compliance*/
+  header('Content-Type: text/xml');
+  header("Content-Length: " . filesize($file) ."; ");
+  header('Content-Disposition: attachment;filename="orders_'.str_replace(" ","",date("Y-m-d_h: i: s a")).'.xml"');
+  header( 'Cache-Control: no-store, no-cache, must-revalidate' );
+  header( 'Cache-Control: post-check=0, pre-check=0', false );
+  header( 'Pragma: no-cache' );
+  header( 'Expires: Sat, 26 Jul 1997 05:00:00 GMT' );
+  header( 'Last-Modified: ' . gmdate( 'D, d M Y H:i:s' ) . ' GMT' ); 
+  ?>
+  <DAZzle Start='PRINTING'>
+    <?php 
+    foreach ($orders as $oid) { 
+      $order = uc_order_load($oid); 
+      $totalweight = uc_endicia_calculate_pkg_weight($order->products);
+      $info = uc_edicia_shipping_details($oid); ?>
+     <Package ID="<?php print $order->order_id;?>" >
+       <WeightOz><?php print $totalweight; ?></WeightOz>
+        <Value><?php print $order->order_total; ?></Value>
+        <Description><?php print $order->order_id; ?></Description>
+        <ToName><?php print $order->delivery_first_name . ' ' . $order->delivery_last_name; ?></ToName>
+        <ToCompany><?php print $order->delivery_company; ?></ToCompany>
+        <ToAddress1><?php print $order->delivery_street1; ?></ToAddress1>
+        <ToAddress2><?php print $order->delivery_street2; ?></ToAddress2>
+        <ToCity><?php print $order->delivery_city; ?></ToCity>
+        <ToState><?php print uc_get_zone_code($order->delivery_zone); ?></ToState>
+        <ToPostalCode><?php print $order->delivery_postal_code; ?></ToPostalCode>
+        <ToEmail><?php print $order->primary_email; ?></ToEmail>
+        <ToPhone><?php print $order->delivery_phone; ?></ToPhone>
+        <PackageType><?php print $info['type']; ?></PackageType>
+        <MailClass><?php print $info['method']; ?></MailClass>
+      </Package> 
+   <?php  } ?>
+  </DAZzle>
+  <?php
+  module_invoke_all('exit');
+  exit();
+}
