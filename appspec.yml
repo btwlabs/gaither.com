@@ -6,4 +6,4 @@ files:
 hooks:
   AfterInstall:
     - location: /scripts/fixperms.sh
-      timeout: 180
+      timeout: 300
