@@ -2,7 +2,7 @@ version: 0.0
 os: linux
 files:
   - source: /
-    destination: /media/efs/platforms/acadia2-0916/
+    destination: /media/efs/webroot/
 hooks:
   AfterInstall:
     - location: /scripts/fixperms.sh
