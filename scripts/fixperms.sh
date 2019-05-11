@@ -1,6 +1,6 @@
 #!/bin/bash
 
-cd /media/efs/platforms/acadia2-0916;
+cd /media/efs/webroot/acadia2-0916;
 
 echo Changing owner of installation...;
 sudo chown -R -h ec2-user:nginx ./;
