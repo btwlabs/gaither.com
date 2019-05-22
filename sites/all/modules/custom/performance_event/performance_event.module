@@ -1,6 +1,6 @@
 <?php
 // $Id$
- 
+
 /**
  * @file
  * Provides a Perfomance Event and Meet and Greet node type.
@@ -89,19 +89,22 @@ function performance_event_node_info() {
     ),
   );
 }
- 
- 
+
+
 /**
  * Implementation of hook_perm().
  */
 function performance_event_perm() {
   return array('administer performance', 'create performance event', 'edit own performance event', 'edit any performance event', 'delete own performance event', 'delete any performance event', 'create meet and greet', 'edit own meet and greet', 'edit any meet and greet', 'delete own meet and greet', 'delete any meet and greet', 'administer meet and greet', 'create profile', 'edit own profile', 'edit any profile', 'delete own profile', 'delete any profile', 'administer profile') ;
 }
- 
+
 /**
  * Implementation of hook_access().
  */
 function performance_event_access($op, $node, $account) {
+  if (empty($node)) {
+    return;
+  }
   switch ($node->type) {
     case 'performance event':
       if ($op == 'create') {
@@ -130,7 +133,7 @@ function performance_event_access($op, $node, $account) {
     break;
   }
 }
- 
+
 /**
  * Implementation of hook_form().
  */
@@ -166,28 +169,28 @@ function performance_event_insert($node) {
       performance_event_add_meet_greet_to_performance ($node->nid, $node->performance_nid);
       //drupal_goto('node/' . $node->performance_nid . '/edit/meet_greets');
     }
-  }  
+  }
 }
 
 /**
  * Implementation of hook_view().
  */
 function performance_event_view($node, $teaser = FALSE, $page = FALSE) {
- 
+
   if (!$teaser) {
   // Use Drupal's default node view.
     $node = node_prepare($node, $teaser);
   }
- 
+
   if ($teaser) {
-  // Use Drupal's default node view.   
+  // Use Drupal's default node view.
     $node = node_prepare($node, $teaser);
   }
- 
+
   return $node;
 }
- 
- 
+
+
 /**
  * Implementation of hook_views_api().
  */
@@ -211,21 +214,21 @@ function performance_event_enable() {
   }
   $form_state = array();
   //issues - once enabled, can't uninstall
-  //content copy module - "export" 
+  //content copy module - "export"
   module_load_include('inc', 'node', 'node.pages'); // new for D6, eliminates "First argument is expected to be a valid callback, 'node_form'" error
 
-  // set directory name 
-  $dir = drupal_get_path('module', 'performance_event') . "/includes"; 
+  // set directory name
+  $dir = drupal_get_path('module', 'performance_event') . "/includes";
 
-  // set pattern 
+  // set pattern
   $pattern = "*.cck";
 
-  // open directory and parse file list 
-  if (is_dir($dir)) { 
-    if ($dh = opendir($dir)) { 
-      // iterate over file list 
+  // open directory and parse file list
+  if (is_dir($dir)) {
+    if ($dh = opendir($dir)) {
+      // iterate over file list
       while (($filename = readdir($dh)) !== false) {
-        // if filename matches search pattern, add to form_state 
+        // if filename matches search pattern, add to form_state
         if (fnmatch($pattern, $filename)) {
           $content = implode('', file($dir . '/' . $filename));
 
@@ -237,14 +240,14 @@ function performance_event_enable() {
               'submitted' => 1
             ),
           );
-          
+
           // Put it in there
           drupal_execute('content_copy_import_form', $form_state, substr($filename, 0, -strlen($pattern)+1));
         } // if (fnmatch($pattern, $filename)) statement
-      } 
-    // close directory 
-    closedir($dh); 
-    } 
+      }
+    // close directory
+    closedir($dh);
+    }
   }
   variable_set(content_profile_use_profile, TRUE);
 }
@@ -300,6 +303,7 @@ function performance_event_token_list($type = 'all') {
 function performance_event_token_values($type, $object = NULL, $options = array()) {
   if ($type == 'node') {
     $node = $object;
+    $tokens = [];
     if ($node->type == 'performance_event') {
       $tokens['performance_event_title'] = $node->title;
     }
@@ -316,7 +320,7 @@ function performance_event_token_values($type, $object = NULL, $options = array(
  * Constructs the email notification message when the site is out of date.
  *
  * @param $key
- *   Unique key to indicate what message to build, e.g. notify meet and greet request registered, won. lost, 
+ *   Unique key to indicate what message to build, e.g. notify meet and greet request registered, won. lost,
  * @param $message
  *   Reference to the message array being built.
  * @param $params
@@ -373,7 +377,7 @@ function performance_event_meet_greet_request_access($node) {
   foreach ($user->roles as $key => $value) {
     $user_roles[] = $key;
   }
-  
+
   //Does the user have the proper role to register for the meet and greet?
   $arr = array_intersect($user_roles, $meet_greet_roles);
   if (!$arr ) {
@@ -519,7 +523,7 @@ function performance_event_add_meet_greet_to_performance($meet_greet_nid, $perfo
   $node = node_load($performance_nid);
   $node->field_meet_greet_reference[] = array('nid' => $meet_greet_nid);
   node_save($node);
-  
+
 }
 
 /**
@@ -555,7 +559,7 @@ function performance_event_membership_increment($order, $settings = array()){
     performance_event_db($order->uid,performance_event_compute_timestamp($settings['member_increment']['units'],$settings['member_increment']['unit_name'],$now));
   }
   else {
-    // extend a current member 
+    // extend a current member
     performance_event_db($order->uid,performance_event_compute_timestamp($settings['member_increment']['units'],$settings['member_increment']['unit_name'],$result->end_date));
   }
   return;
@@ -620,7 +624,7 @@ function performance_event_db($uid, $newdate){
  *
  *Displays the options for CA
  **/
-function performance_event_membership_increment_form($form_state, $settings = array()) {  
+function performance_event_membership_increment_form($form_state, $settings = array()) {
   if(!isset($settings['member_increment']['units'])){
     $settings['units'] = 0;
     $settings['unit_name'] = 'day';
@@ -654,23 +658,23 @@ function performance_event_membership_increment_form($form_state, $settings = ar
       'week' => ('Weeks'),
       'year' => ('Years'),
       'forever' => ('Forever'),
-      
+
     )
   );
 
   return $form;
 }
 
-function performance_event_membership_increment_form_validate($form_state,&$settings = array()) {
-   if ( empty($settings['member_increment']['#units'])) {
-     @form_error(&$form['member_increment']['units'], t('This field is required.'));
+function performance_event_membership_increment_form_validate($form, &$form_state) {
+   if ( empty($form_state['member_increment']['#units'])) {
+     @form_error($form['member_increment']['units'], t('This field is required.'));
      return false;
    }
-   else if (!is_int($settings['#units'])) {
-      @form_error(&$form['member_increment']['units'], t('This field can only be numbers.'));
+   else if (!is_int($form_state['#units'])) {
+      @form_error($form['member_increment']['units'], t('This field can only be numbers.'));
       return false;
    }
-   if (empty($settings['member_increment']['#unit_name'])){
+   if (empty($form_state['member_increment']['#unit_name'])){
      @form_error($element, t('This field is required.'));
       return false;
    }
@@ -770,7 +774,7 @@ function theme_performance_event_formatter_adv_ticket_link($element) {
 function theme_performance_event_formatter_std_ticket_link($element) {
 
   $timezone_offset = date("O") / 100 * 60 * 60;
-  
+
   // strtotime result is actually where the offset occurs.  Easier to add here though.
   $now = time() - $timezone_offset;
 
@@ -790,7 +794,7 @@ function theme_performance_event_formatter_std_ticket_link($element) {
   return NULL;
 }
 
-/**  
+/**
 *  These node formatters are needed because the node object data structure is different when viewing a node,
 *  versus using views.
 **/
@@ -820,7 +824,7 @@ function theme_performance_event_formatter_node_adv_ticket_link($element) {
  * Theme function for the standard ticket sales link
  */
 function theme_performance_event_formatter_node_std_ticket_link($element) {
-  
+
   $timezone_offset = date("O") / 100 * 60 * 60;
 
   // strtotime result is actually where the offset occurs.  Easier to add here though.
