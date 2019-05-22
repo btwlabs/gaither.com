@@ -7,16 +7,12 @@ sudo chown -R -h ec2-user:nginx ./;
 echo "done";
 
 echo Changing permissions on all directories...;
-find ./ -type d -exec chmod u=rwx,g=rx,o= '{}' \;
+find ./ -type d -exec chmod u=rx,g=rx,rx= '{}' \;
 echo "done";
 
 
 echo Changing permissions on all files...;
-find ./ -type f -exec chmod u=rw,g=r,o= '{}' \;
-echo "done" ;
-
-echo Changing permissions on all directories in the files dir...;
-find ./sites/gaither.com/files/ -type d -exec chmod u=rwx,g=rwx,o= '{}' \;
+find ./ -type f -exec chmod u=x,g=x,x= '{}' \;
 echo "done" ;
 
 echo ALL DONE!;
