@@ -1,7 +1,5 @@
-
-Wysiwyg 6.x-2.x, xxxx-xx-xx
----------------------------
-
+Note: This file is no longer updated. See the git history or release notes instead.
+Project change records will also be published for major changes.
 
 Wysiwyg 6.x-2.4, 2011-06-19
 ---------------------------

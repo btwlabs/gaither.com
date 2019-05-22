@@ -3,9 +3,8 @@ description = Allows users to edit contents with client-side editors.
 package = User interface
 core = 6.x
 
-; Information added by drupal.org packaging script on 2011-06-19
-version = "6.x-2.4"
+; Information added by Drupal.org packaging script on 2018-04-18
+version = "6.x-2.7"
 core = "6.x"
 project = "wysiwyg"
-datestamp = "1308450722"
-
+datestamp = "1524085385"
