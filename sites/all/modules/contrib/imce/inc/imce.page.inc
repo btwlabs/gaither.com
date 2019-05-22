@@ -179,7 +179,7 @@ function imce_fileop_form(&$form_state, $ref) {
       '#title' => t('Resize'),
     ) + imce_resize_form($imce);
   }
- 
+
   $form['#action'] = $imce['url'];
   return $form;
 }
@@ -704,8 +704,20 @@ if (variable_get('imce_image_get_info', 0)) {
 }
 else {
   function imce_image_info($file) {
-    if (is_file($file) && ($dot = strrpos($file, '.')) && in_array(strtolower(substr($file, $dot+1)), array('jpg', 'jpeg', 'gif', 'png')) && ($info = @getimagesize($file)) && in_array($info[2], array(IMAGETYPE_JPEG, IMAGETYPE_GIF, IMAGETYPE_PNG)) ) {
-      return array('width' => $info[0], 'height' => $info[1], 'type' => $info[2], 'mime' => $info['mime']);
+    $cache_key = 'imce-' . $file;
+    $cache = cache_get($cache_key);
+    if ($cache) {
+      return $cache->data;
+    }
+    if
+    (is_file($file) && ($dot = strrpos($file, '.')) &&
+      in_array(strtolower(substr($file, $dot+1)), array('jpg', 'jpeg',
+        'gif','png')) && ($info = @getimagesize($file)) &&
+      in_array($info[2], array(IMAGETYPE_JPEG, IMAGETYPE_GIF, IMAGETYPE_PNG)) )
+    {
+      $result = array('width' => $info[0], 'height' => $info[1], 'type' => $info[2], 'mime' => $info['mime']);
+      cache_set($cache_key, $result);
+      return $result;
     }
     return FALSE;
   }
