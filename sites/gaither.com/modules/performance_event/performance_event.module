@@ -580,7 +580,7 @@ function performance_event_compute_timestamp($unit, $unit_name, $now){
   if ( is_int($unit) &&  (($unit != '')  && ($unit_name != '')) && (isset($unit) && isset($unit_name))) {
     switch($unit_name){
       case 'day':
-        $newdate (3600 * unit) + $now;
+        $newdate = (3600 * unit) + $now;
         break;
       case 'week':
         $newdate = (25200 * unit) + $now;
